@@ -1,0 +1,165 @@
+openapi: 3.0.0
+info:
+  title: Учебный пример API
+  description: |
+    Упрощённый пример OpenAPI-спецификации для учебных целей.
+    Используйте как шаблон для своего проекта.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Локальный сервер для разработки
+
+# Основные эндпоинты
+paths:
+  # 1. GET - получить список всех товаров
+  /items:
+    get:
+      summary: Список товаров
+      description: Возвращает массив всех товаров
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
+
+  # 2. POST - создать новый товар
+    post:
+      summary: Создать товар
+      description: Добавляет новый товар в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemCreate'
+      responses:
+        '201':
+          description: Товар успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '400':
+          description: Ошибка в данных запроса
+          $ref: '#/components/responses/BadRequest'
+
+  # 3. GET /items/{id} - получить один товар по ID
+  /items/{itemId}:
+    get:
+      summary: Получить товар по ID
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: ID товара
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Товар найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          description: Товар не найден
+          $ref: '#/components/responses/NotFound'
+
+  # 4. DELETE /items/{id} - удалить товар
+    delete:
+      summary: Удалить товар
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: ID товара для удаления
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Товар удалён
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  # Модели данных
+  schemas:
+    Item:
+      type: object
+      description: Полная модель товара (включая ID)
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор
+          example: 42
+        name:
+          type: string
+          description: Название товара
+          example: "Ноутбук"
+        price:
+          type: number
+          description: Цена в рублях
+          example: 75000.50
+        in_stock:
+          type: boolean
+          description: Есть ли в наличии
+          default: true
+      required:
+        - id
+        - name
+        - price
+
+    ItemCreate:
+      type: object
+      description: Данные для создания товара (без ID)
+      properties:
+        name:
+          type: string
+          description: Название товара
+          example: "Ноутбук"
+        price:
+          type: number
+          description: Цена в рублях
+          example: 75000.50
+        in_stock:
+          type: boolean
+          description: Есть ли в наличии
+          default: true
+      required:
+        - name
+        - price
+
+  # Переиспользуемые ответы с ошибками
+  responses:
+    BadRequest:
+      description: Ошибка в запросе
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Некорректные данные"
+              code:
+                type: integer
+                example: 400
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Товар не найден"
+              code:
+                type: integer
+                example: 404
