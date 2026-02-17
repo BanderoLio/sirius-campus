@@ -1,1 +1,28 @@
 /efimov-promts
+/efimov-excrement
+
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Окружение
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Тесты
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Docker
+docker-compose.override.yml
