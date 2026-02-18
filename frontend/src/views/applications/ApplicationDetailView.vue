@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useApplicationsStore } from "@/stores/applications.store";
 import { formatDateTime } from "@/utils/date.utils";
+import { getDocumentDownloadUrl } from "@/api/applications.api";
 
 const route = useRoute();
 const router = useRouter();
@@ -15,6 +16,7 @@ const deciding = ref(false);
 const uploading = ref(false);
 const docType = ref("signed_application");
 const fileInput = ref<HTMLInputElement | null>(null);
+const downloadingDocId = ref<string | null>(null);
 
 const id = computed(() => route.params.id as string);
 const isPending = computed(() => currentDetail.value?.status === "pending");
@@ -59,6 +61,17 @@ function documentTypeLabel(t: string) {
     voice_message: "Голосовое сообщение",
   };
   return map[t] ?? t;
+}
+
+async function downloadDoc(documentId: string) {
+  downloadingDocId.value = documentId;
+  try {
+    const { url } = await getDocumentDownloadUrl(id.value, documentId);
+    const downloadUrl = url.replace(/\bminio\b/g, "localhost");
+    window.open(downloadUrl, "_blank", "noopener,noreferrer");
+  } finally {
+    downloadingDocId.value = null;
+  }
 }
 </script>
 
@@ -146,8 +159,19 @@ function documentTypeLabel(t: string) {
           <li
             v-for="doc in currentDetail.documents"
             :key="doc.id"
+            class="flex items-center justify-between gap-3"
           >
-            {{ documentTypeLabel(doc.document_type) }} ({{ doc.id.slice(0, 8) }})
+            <span>
+              {{ documentTypeLabel(doc.document_type) }} ({{ doc.id.slice(0, 8) }})
+            </span>
+            <button
+              type="button"
+              class="rounded border px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50"
+              :disabled="downloadingDocId === doc.id"
+              @click="downloadDoc(doc.id)"
+            >
+              {{ downloadingDocId === doc.id ? "..." : "Скачать" }}
+            </button>
           </li>
         </ul>
         <p v-else class="text-gray-500">Нет прикреплённых документов.</p>

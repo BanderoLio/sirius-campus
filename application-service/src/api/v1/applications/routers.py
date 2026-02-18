@@ -1,7 +1,9 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Query, status, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi.responses import Response
+from sqlalchemy.util import deprecated
 
 from src.api.v1.applications.schemas import (
     ApplicationCreateRequest,
@@ -9,6 +11,7 @@ from src.api.v1.applications.schemas import (
     ApplicationDetailResponse,
     ApplicationListResponse,
     ApplicationResponse,
+    DocumentDownloadResponse,
     DocumentResponse,
 )
 from src.dependencies import (
@@ -41,6 +44,8 @@ async def list_applications(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     status_filter: str | None = Query(None, alias="status"),
+    entrance: int | None = Query(None, ge=1, le=4),
+    room: str | None = Query(None, min_length=1, max_length=10),
     date_from: date | None = None,
     date_to: date | None = None,
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
@@ -53,6 +58,8 @@ async def list_applications(
     filter_user_id = None if is_educator else user_id
     items, total = await service.list_applications(
         user_id=filter_user_id,
+        entrance=entrance if is_educator else None,
+        room=room if is_educator else None,
         status=status_filter,
         date_from=date_from,
         date_to=date_to,
@@ -165,3 +172,51 @@ async def upload_document(
         uploaded_by=user_id,
     )
     return _to_document_response(doc)
+
+
+@router.get(
+    "/{application_id}/documents/{document_id}/download",
+    response_model=DocumentDownloadResponse,
+    summary="Get presigned download URL for a document",
+)
+async def download_document(
+    application_id: UUID,
+    document_id: UUID,
+    current_user: tuple[UUID, list[str]] = Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+) -> DocumentDownloadResponse:
+    user_id, roles = current_user
+    url = await service.get_document_download_url(
+        application_id=application_id,
+        document_id=document_id,
+        current_user_id=user_id,
+        current_user_roles=roles,
+    )
+    return DocumentDownloadResponse(url=url)
+
+
+@deprecated("Use s3 storage access instead")
+@router.get(
+    "/{application_id}/documents/{document_id}/file",
+    summary="Download document file (streamed through backend)",
+)
+async def download_document_file(
+    application_id: UUID,
+    document_id: UUID,
+    current_user: tuple[UUID, list[str]] = Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+) -> Response:
+    user_id, roles = current_user
+    data, content_type, filename = await service.get_document_file(
+        application_id=application_id,
+        document_id=document_id,
+        current_user_id=user_id,
+        current_user_roles=roles,
+    )
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )

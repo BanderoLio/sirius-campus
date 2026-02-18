@@ -71,14 +71,21 @@ class ApplicationService:
         self,
         *,
         user_id: UUID | None = None,
+        entrance: int | None = None,
+        room: str | None = None,
         status: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
         page: int = 1,
         size: int = 20,
     ) -> tuple[list[object], int]:
+        user_ids: list[UUID] | None = None
+        if user_id is None and (entrance is not None or room is not None):
+            ids = await self._auth.get_user_ids(entrance=entrance, room=room)
+            user_ids = [UUID(v) for v in ids]
         items, total = await self._app_repo.get_list(
             user_id=user_id,
+            user_ids=user_ids,
             status=status,
             date_from=date_from,
             date_to=date_to,
@@ -177,6 +184,62 @@ class ApplicationService:
             document_id=doc_id,
         )
         return doc
+
+    async def get_document_download_url(
+        self,
+        application_id: UUID,
+        document_id: UUID,
+        current_user_id: UUID,
+        current_user_roles: list[str],
+        expiry_seconds: int = 3600,
+    ) -> str:
+        app = await self._app_repo.get_by_id(application_id)
+        if not app:
+            raise ApplicationNotFoundError(str(application_id))
+
+        is_owner = app.user_id == current_user_id
+        is_educator = any(
+            r in current_user_roles for r in ("educator", "educator_head", "admin")
+        )
+        if not is_owner and not is_educator:
+            raise ForbiddenApplicationError()
+
+        doc = await self._doc_repo.get_by_id(document_id)
+        if not doc or doc.application_id != application_id:
+            from src.domain.exceptions import DocumentNotFoundError
+
+            raise DocumentNotFoundError(str(document_id))
+
+        return await self._storage.get_presigned_download_url(
+            object_name=doc.file_url,
+            expiry_seconds=expiry_seconds,
+        )
+
+    async def get_document_file(
+        self,
+        application_id: UUID,
+        document_id: UUID,
+        current_user_id: UUID,
+        current_user_roles: list[str],
+    ) -> tuple[bytes, str, str]:
+        """Stream document file through backend. Returns (data, content_type, filename)."""
+        app = await self._app_repo.get_by_id(application_id)
+        if not app:
+            raise ApplicationNotFoundError(str(application_id))
+        is_owner = app.user_id == current_user_id
+        is_educator = any(
+            r in current_user_roles for r in ("educator", "educator_head", "admin")
+        )
+        if not is_owner and not is_educator:
+            raise ForbiddenApplicationError()
+        doc = await self._doc_repo.get_by_id(document_id)
+        if not doc or doc.application_id != application_id:
+            from src.domain.exceptions import DocumentNotFoundError
+
+            raise DocumentNotFoundError(str(document_id))
+        data, content_type = await self._storage.get_object(object_name=doc.file_url)
+        filename = doc.file_url.split("/")[-1] if "/" in doc.file_url else doc.file_url
+        return data, content_type, filename
 
     async def get_approved_leaves_for_date(
         self,

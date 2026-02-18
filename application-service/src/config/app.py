@@ -13,6 +13,7 @@ class AppSettings(BaseSettings):
     app_name: str = "application-service"
     log_level: str = "INFO"
     loki_url: str = ""
+    grpc_port: int = 50055
 
 
 settings = AppSettings()

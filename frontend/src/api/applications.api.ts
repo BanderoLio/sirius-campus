@@ -70,3 +70,14 @@ export async function uploadDocument(
   );
   return res.data;
 }
+
+export async function getDocumentDownloadUrl(
+  applicationId: string,
+  documentId: string
+): Promise<{ url: string }> {
+  const res = await apiClient.get(
+    `/api/v1/applications/${applicationId}/documents/${documentId}/download`
+  );
+  return res.data as { url: string };
+}
+

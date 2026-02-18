@@ -11,6 +11,9 @@ class MinioSettings(BaseSettings):
     )
 
     endpoint: str = "localhost:9000"
+    """Endpoint for server-to-MinIO requests (e.g. minio:9000 in Docker)."""
+    public_endpoint: str | None = None
+    """Endpoint for presigned URLs so the browser can reach MinIO (e.g. localhost:9000). If set, presigned URLs are signed for this host."""
     access_key: str = "minioadmin"
     secret_key: str = "minioadmin"
     bucket_applications: str = "applications"

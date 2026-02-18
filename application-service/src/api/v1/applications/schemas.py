@@ -27,6 +27,10 @@ class DocumentResponse(BaseModel):
     created_at: datetime
 
 
+class DocumentDownloadResponse(BaseModel):
+    url: str
+
+
 class ApplicationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

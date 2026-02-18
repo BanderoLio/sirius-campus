@@ -39,7 +39,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     connectable = async_engine_from_config(
-        {"sqlalchemy.url": database_settings.database_url},
+        {"url": database_settings.database_url},
         prefix="",
         poolclass=pool.NullPool,
     )

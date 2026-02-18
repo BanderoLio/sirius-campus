@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 from io import BytesIO
 from uuid import UUID
 
@@ -15,6 +16,17 @@ class MinioStorage:
             access_key=minio_settings.access_key,
             secret_key=minio_settings.secret_key,
             secure=minio_settings.secure,
+        )
+        self._presign_client = (
+            Minio(
+                minio_settings.public_endpoint,
+                access_key=minio_settings.access_key,
+                secret_key=minio_settings.secret_key,
+                secure=minio_settings.secure,
+                region="us-east-1",
+            )
+            if minio_settings.public_endpoint
+            else self._client
         )
         self._bucket = minio_settings.bucket_applications
 
@@ -46,3 +58,39 @@ class MinioStorage:
             return object_name
 
         return await asyncio.to_thread(_put)
+
+    async def get_presigned_download_url(
+        self,
+        object_name: str,
+        expiry_seconds: int = 3600,
+    ) -> str:
+        def _presign() -> str:
+            return self._presign_client.presigned_get_object(
+                self._bucket,
+                object_name,
+                expires=timedelta(seconds=expiry_seconds),
+            )
+
+        return await asyncio.to_thread(_presign)
+
+    async def get_object(
+        self,
+        object_name: str,
+    ) -> tuple[bytes, str]:
+        """Get object bytes and content_type. Uses internal endpoint (no public URL)."""
+
+        def _get() -> tuple[bytes, str]:
+            self._ensure_bucket()
+            response = self._client.get_object(self._bucket, object_name)
+            try:
+                data = response.read()
+                content_type = (
+                    response.headers.get("Content-Type")
+                    if hasattr(response.headers, "get")
+                    else getattr(response, "content_type", None)
+                ) or "application/octet-stream"
+                return data, content_type
+            finally:
+                response.close()
+
+        return await asyncio.to_thread(_get)

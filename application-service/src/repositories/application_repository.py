@@ -32,17 +32,22 @@ class ApplicationRepository:
         self,
         *,
         user_id: UUID | None = None,
+        user_ids: list[UUID] | None = None,
         status: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
         page: int = 1,
         size: int = 20,
     ) -> tuple[list[ApplicationModel], int]:
+        if user_ids is not None and len(user_ids) == 0:
+            return [], 0
         q = select(ApplicationModel)
         count_q = select(func.count()).select_from(ApplicationModel)
         conditions = []
         if user_id is not None:
             conditions.append(ApplicationModel.user_id == user_id)
+        if user_ids is not None:
+            conditions.append(ApplicationModel.user_id.in_(user_ids))
         if status is not None:
             conditions.append(ApplicationModel.status == status)
         if date_from is not None:

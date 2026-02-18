@@ -4,12 +4,14 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from contextlib import asynccontextmanager
 
 from src.api.v1.applications.routers import router as applications_router
 from src.config import settings
 from src.database import engine
 from src.exceptions import register_exception_handlers
 from src.middleware.tracing import TracingMiddleware
+from src.grpc_server.server import create_and_start_grpc_server
 
 structlog.configure(
     processors=[
@@ -28,10 +30,21 @@ structlog.configure(
     cache_logger_on_first_use=True,
 )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    grpc_server = await create_and_start_grpc_server()
+    try:
+        yield
+    finally:
+        if grpc_server is not None:
+            await grpc_server.stop(grace=5)
+
+
 app = FastAPI(
     title="Application Service",
     description="Exit applications module (Кампус Сириус)",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(TracingMiddleware)

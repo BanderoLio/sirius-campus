@@ -38,6 +38,14 @@ class AuthClientProtocol(Protocol):
     async def get_user_info(self, user_id: str) -> UserInfo | None:
         ...
 
+    async def get_user_ids(
+        self,
+        *,
+        entrance: int | None = None,
+        room: str | None = None,
+    ) -> list[str]:
+        ...
+
 
 class AuthClientStub:
     """Stub for development when auth-service is not available."""
@@ -74,6 +82,20 @@ class AuthClientStub:
             email="student@example.com",
             is_minor=False,
         )
+
+    async def get_user_ids(
+        self,
+        *,
+        entrance: int | None = None,
+        room: str | None = None,
+    ) -> list[str]:
+        # Stub returns only the single test user when filters match (or no filters provided).
+        user_id = "00000000-0000-0000-0000-000000000001"
+        if entrance is not None and entrance != 1:
+            return []
+        if room is not None and room and room != "301":
+            return []
+        return [user_id]
 
 
 def get_auth_client() -> AuthClientProtocol:
