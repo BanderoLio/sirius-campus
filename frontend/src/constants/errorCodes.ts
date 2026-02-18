@@ -1,0 +1,14 @@
+export const APP_APPLICATION_NOT_FOUND = "APP_APPLICATION_NOT_FOUND" as const;
+export const APP_DOCUMENT_NOT_FOUND = "APP_DOCUMENT_NOT_FOUND" as const;
+export const APP_INVALID_DOCUMENT_TYPE = "APP_INVALID_DOCUMENT_TYPE" as const;
+export const APP_MINOR_VOICE_REQUIRED = "APP_MINOR_VOICE_REQUIRED" as const;
+export const APP_FORBIDDEN = "APP_FORBIDDEN" as const;
+export const APP_ALREADY_DECIDED = "APP_ALREADY_DECIDED" as const;
+
+export type ApplicationErrorCode =
+  | typeof APP_APPLICATION_NOT_FOUND
+  | typeof APP_DOCUMENT_NOT_FOUND
+  | typeof APP_INVALID_DOCUMENT_TYPE
+  | typeof APP_MINOR_VOICE_REQUIRED
+  | typeof APP_FORBIDDEN
+  | typeof APP_ALREADY_DECIDED;

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package campus.application;
+
+service ApplicationService {
+  rpc GetApprovedLeaves(GetApprovedLeavesRequest) returns (GetApprovedLeavesResponse);
+}
+
+message GetApprovedLeavesRequest {
+  string date = 1;
+  string building = 2;
+  int32 entrance = 3;
+}
+
+message GetApprovedLeavesResponse {
+  repeated LeaveRecord records = 1;
+}
+
+message LeaveRecord {
+  string user_id = 1;
+  string user_name = 2;
+  string room = 3;
+  string leave_time = 4;
+  string return_time = 5;
+  string reason = 6;
+}
