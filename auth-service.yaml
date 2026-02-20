@@ -1,0 +1,1341 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  description: Микросервис аутентификации и управления пользователями проекта Кампус Сириус
+  version: 1.0.0
+  contact:
+    name: Campus Sirius Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8001/api/v1
+    description: Local development server
+  - url: https://campus.sirius.ru/api/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Операции входа, регистрации и выхода из системы
+  - name: Users
+    description: Управление пользователями (получение, обновление профиля)
+  - name: Students
+    description: Управление профилями студентов
+  - name: Educators
+    description: Управление профилями воспитателей
+
+components:
+  # Модели данных (из предоставленной схемы)
+  schemas:
+    User:
+      type: object
+      description: Пользователь
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор
+          example: "98373eac-680f-49ac-89b7-7c88c27d4920"
+        email:
+          type: string
+          format: email
+          description: Почта
+          example: "user@example.com"
+        password_hash:
+          type: string
+          description: Хеш пароля (не возвращается в API)
+          example: "dada8dau89faja9wdef809wfuj"
+          readOnly: true
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания
+          example: "2001-01-01T15:24:00Z"
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          description: Время обновления профиля
+          example: "2001-01-01T15:24:00Z"
+          readOnly: true
+      required:
+        - id
+        - email
+        - first_name
+        - last_name
+
+    Student:
+      type: object
+      description: Сущность студента
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор пользователя
+          example: "98373eac-680f-49ac-89b7-7c88c27d4920"
+        building:
+          type: integer
+          description: Номер корпуса
+          example: 8
+        entrance:
+          type: integer
+          description: Номер подъезда
+          example: 1
+        floor:
+          type: integer
+          description: Номер этажа
+          example: 1
+        room:
+          type: integer
+          description: Номер комнаты
+          example: 5398
+        is_adult:
+          type: boolean
+          description: Является ли совершеннолетним
+          default: false
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания
+          example: "2001-01-01T15:24:00Z"
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          description: Время обновления профиля
+          example: "2001-01-01T15:24:00Z"
+          readOnly: true
+      required:
+        - userId
+
+    Educator:
+      type: object
+      description: Сущность воспитателя
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор пользователя
+          example: "98373eac-680f-49ac-89b7-7c88c27d4920"
+        is_night:
+          type: boolean
+          description: Является ли ночным воспитателем
+          default: false
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания
+          example: "2001-01-01T15:24:00Z"
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          description: Время обновления профиля
+          example: "2001-01-01T15:24:00Z"
+          readOnly: true
+      required:
+        - userId
+
+    # Дополнительные модели для работы API
+    UserCreate:
+      type: object
+      description: Данные для создания пользователя
+      properties:
+        email:
+          type: string
+          format: email
+          description: Почта
+          example: "user@example.com"
+        password:
+          type: string
+          description: Пароль (будет захэширован)
+          example: "securePassword123"
+          minLength: 8
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+      required:
+        - email
+        - password
+        - first_name
+        - last_name
+
+    UserLogin:
+      type: object
+      description: Данные для входа
+      properties:
+        email:
+          type: string
+          format: email
+          description: Почта
+          example: "user@example.com"
+        password:
+          type: string
+          description: Пароль
+          example: "securePassword123"
+      required:
+        - email
+        - password
+
+    TokenResponse:
+      type: object
+      description: Ответ с токенами
+      properties:
+        access_token:
+          type: string
+          description: JWT access token (срок действия 15 минут)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          description: Refresh token для обновления access token (срок действия 7 дней)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          description: Тип токена
+          example: "bearer"
+          default: "bearer"
+
+    RefreshTokenRequest:
+      type: object
+      description: Запрос на обновление токена
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      required:
+        - refresh_token
+
+    UserUpdate:
+      type: object
+      description: Данные для обновления пользователя
+      properties:
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        password:
+          type: string
+          description: Новый пароль
+          example: "newSecurePassword123"
+          minLength: 8
+
+    StudentCreate:
+      type: object
+      description: Данные для создания профиля студента
+      allOf:
+        - $ref: '#/components/schemas/UserCreate'
+        - type: object
+          properties:
+            building:
+              type: integer
+              description: Номер корпуса
+              example: 8
+            entrance:
+              type: integer
+              description: Номер подъезда
+              example: 1
+            floor:
+              type: integer
+              description: Номер этажа
+              example: 1
+            room:
+              type: integer
+              description: Номер комнаты
+              example: 5398
+            is_adult:
+              type: boolean
+              description: Является ли совершеннолетним
+              default: false
+          required:
+            - building
+            - entrance
+            - floor
+            - room
+
+    StudentUpdate:
+      type: object
+      description: Данные для обновления профиля студента
+      properties:
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        password:
+          type: string
+          description: Новый пароль
+          example: "newSecurePassword123"
+          minLength: 8
+        building:
+          type: integer
+          description: Номер корпуса
+          example: 8
+        entrance:
+          type: integer
+          description: Номер подъезда
+          example: 1
+        floor:
+          type: integer
+          description: Номер этажа
+          example: 1
+        room:
+          type: integer
+          description: Номер комнаты
+          example: 5398
+        is_adult:
+          type: boolean
+          description: Является ли совершеннолетним
+
+    EducatorCreate:
+      type: object
+      description: Данные для создания профиля воспитателя
+      allOf:
+        - $ref: '#/components/schemas/UserCreate'
+        - type: object
+          properties:
+            is_night:
+              type: boolean
+              description: Является ли ночным воспитателем
+              default: false
+
+    EducatorUpdate:
+      type: object
+      description: Данные для обновления профиля воспитателя
+      properties:
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        password:
+          type: string
+          description: Новый пароль
+          example: "newSecurePassword123"
+          minLength: 8
+        is_night:
+          type: boolean
+          description: Является ли ночным воспитателем
+
+    UserType:
+      type: string
+      description: Тип пользователя
+      enum: [student, educator]
+      example: "student"
+
+    UserWithProfile:
+      type: object
+      description: Пользователь с профилем (студент или воспитатель)
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        profile:
+          oneOf:
+            - $ref: '#/components/schemas/Student'
+            - $ref: '#/components/schemas/Educator'
+        user_type:
+          $ref: '#/components/schemas/UserType'
+
+    PaginatedUsers:
+      type: object
+      description: Список пользователей с пагинацией
+      properties:
+        items:
+          type: array
+          description: Массив пользователей
+          items:
+            $ref: '#/components/schemas/User'
+        total:
+          type: integer
+          description: Общее количество записей
+          example: 100
+        page:
+          type: integer
+          description: Текущая страница
+          example: 1
+        size:
+          type: integer
+          description: Размер страницы
+          example: 20
+        pages:
+          type: integer
+          description: Общее количество страниц
+          example: 5
+
+    ErrorResponse:
+      type: object
+      description: Единый формат ответа об ошибке
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Код ошибки (префикс AUTH_)
+              example: "AUTH_INVALID_TOKEN"
+            message:
+              type: string
+              description: Описание ошибки
+              example: "Токен недействителен или истек"
+            trace_id:
+              type: string
+              format: uuid
+              description: Идентификатор для трассировки
+              example: "550e8400-e29b-41d4-a716-446655440000"
+            details:
+              type: object
+              description: Дополнительные детали ошибки
+              nullable: true
+              example: null
+
+    # JWT Payload (для документации)
+    JWTPayload:
+      type: object
+      description: Payload JWT токена
+      properties:
+        sub:
+          type: string
+          format: uuid
+          description: ID пользователя
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_type:
+          $ref: '#/components/schemas/UserType'
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+          example: "user@example.com"
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        building:
+          type: integer
+          description: Номер корпуса (только для студента)
+          example: 8
+        entrance:
+          type: integer
+          description: Номер подъезда (только для студента)
+          example: 1
+        floor:
+          type: integer
+          description: Номер этажа (только для студента)
+          example: 1
+        room:
+          type: integer
+          description: Номер комнаты (только для студента)
+          example: 5398
+        is_adult:
+          type: boolean
+          description: Является ли совершеннолетним (только для студента)
+          example: true
+        is_night:
+          type: boolean
+          description: Является ли ночным воспитателем (только для воспитателя)
+          example: false
+        exp:
+          type: integer
+          description: Время истечения токена (Unix timestamp)
+          example: 1700000000
+        iat:
+          type: integer
+          description: Время выпуска токена (Unix timestamp)
+          example: 1699999100
+        jti:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор токена
+          example: "unique-token-id"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token для аутентификации
+
+  parameters:
+    pageParam:
+      name: page
+      in: query
+      description: Номер страницы (начиная с 1)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    sizeParam:
+      name: size
+      in: query
+      description: Количество элементов на странице (макс. 100)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    userIdParam:
+      name: userId
+      in: path
+      description: UUID пользователя
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "98373eac-680f-49ac-89b7-7c88c27d4920"
+
+  responses:
+    UnauthorizedError:
+      description: Не аутентифицирован
+      headers:
+        X-Trace-ID:
+          schema:
+            type: string
+            format: uuid
+          description: Идентификатор для трассировки
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Токен отсутствует или невалиден"
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+    ForbiddenError:
+      description: Недостаточно прав
+      headers:
+        X-Trace-ID:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "FORBIDDEN"
+              message: "Недостаточно прав для выполнения операции"
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+    NotFoundError:
+      description: Ресурс не найден
+      headers:
+        X-Trace-ID:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "NOT_FOUND"
+              message: "Пользователь с указанным ID не найден"
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+    ConflictError:
+      description: Конфликт данных
+      headers:
+        X-Trace-ID:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "CONFLICT"
+              message: "Пользователь с таким email уже существует"
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+    ValidationError:
+      description: Ошибка валидации
+      headers:
+        X-Trace-ID:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Ошибка валидации входных данных"
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details:
+                field: "email"
+                error: "value is not a valid email address"
+
+security:
+  - bearerAuth: []
+
+paths:
+  # Публичные эндпоинты (без аутентификации)
+  /auth/register/student:
+    post:
+      tags:
+        - Authentication
+        - Students
+      summary: Регистрация нового студента
+      description: Создает нового пользователя с профилем студента
+      operationId: registerStudent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCreate'
+      responses:
+        '201':
+          description: Студент успешно создан
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /auth/register/educator:
+    post:
+      tags:
+        - Authentication
+        - Educators
+      summary: Регистрация нового воспитателя
+      description: Создает нового пользователя с профилем воспитателя
+      operationId: registerEducator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EducatorCreate'
+      responses:
+        '201':
+          description: Воспитатель успешно создан
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Вход в систему
+      description: Аутентификация пользователя и получение JWT токенов
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Неверные учетные данные
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "AUTH_INVALID_CREDENTIALS"
+                  message: "Неверный email или пароль"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Обновление access токена
+      description: Получение нового access токена с использованием refresh токена
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Токен успешно обновлен
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Недействительный refresh токен
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "AUTH_INVALID_REFRESH_TOKEN"
+                  message: "Refresh токен недействителен или истек"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Выход из системы
+      description: Инвалидация refresh токена
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '204':
+          description: Успешный выход из системы
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  # Защищенные эндпоинты (требуют аутентификации)
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Получение профиля текущего пользователя
+      description: Возвращает информацию о текущем аутентифицированном пользователе с его профилем
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение профиля
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /students/me:
+    patch:
+      tags:
+        - Students
+      summary: Обновление профиля текущего студента
+      description: Обновляет информацию о текущем аутентифицированном студенте
+      operationId: updateCurrentStudent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentUpdate'
+      responses:
+        '200':
+          description: Профиль студента успешно обновлен
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Пользователь не является студентом
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "FORBIDDEN"
+                  message: "Текущий пользователь не является студентом"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /educators/me:
+    patch:
+      tags:
+        - Educators
+      summary: Обновление профиля текущего воспитателя
+      description: Обновляет информацию о текущем аутентифицированном воспитателе
+      operationId: updateCurrentEducator
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EducatorUpdate'
+      responses:
+        '200':
+          description: Профиль воспитателя успешно обновлен
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Пользователь не является воспитателем
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "FORBIDDEN"
+                  message: "Текущий пользователь не является воспитателем"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Получение списка пользователей
+      description: Возвращает список пользователей с пагинацией
+      operationId: getUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/sizeParam'
+        - name: user_type
+          in: query
+          description: Фильтр по типу пользователя
+          required: false
+          schema:
+            $ref: '#/components/schemas/UserType'
+        - name: building
+          in: query
+          description: Фильтр по корпусу (только для студентов)
+          required: false
+          schema:
+            type: integer
+        - name: entrance
+          in: query
+          description: Фильтр по подъезду (только для студентов)
+          required: false
+          schema:
+            type: integer
+        - name: floor
+          in: query
+          description: Фильтр по этажу (только для студентов)
+          required: false
+          schema:
+            type: integer
+        - name: room
+          in: query
+          description: Фильтр по комнате (только для студентов)
+          required: false
+          schema:
+            type: integer
+        - name: is_night
+          in: query
+          description: Фильтр по типу воспитателя (только для воспитателей)
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Успешное получение списка пользователей
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsers'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Получение пользователя по ID
+      description: Возвращает информацию о пользователе по его ID с профилем
+      operationId: getUserById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userIdParam'
+      responses:
+        '200':
+          description: Успешное получение пользователя
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /students/{userId}:
+    get:
+      tags:
+        - Students
+      summary: Получение студента по ID
+      description: Возвращает информацию о студенте по его ID
+      operationId: getStudentById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userIdParam'
+      responses:
+        '200':
+          description: Успешное получение студента
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Пользователь не является студентом
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "FORBIDDEN"
+                  message: "Пользователь не является студентом"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+
+  /educators/{userId}:
+    get:
+      tags:
+        - Educators
+      summary: Получение воспитателя по ID
+      description: Возвращает информацию о воспитателе по его ID
+      operationId: getEducatorById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userIdParam'
+      responses:
+        '200':
+          description: Успешное получение воспитателя
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Educator'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Пользователь не является воспитателем
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "FORBIDDEN"
+                  message: "Пользователь не является воспитателем"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          description: Внутренняя ошибка сервера
+          headers:
+            X-Trace-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Внутренняя ошибка сервера"
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
