@@ -7,6 +7,7 @@ from app.auth_stub import get_user_from_authorization
 from app.grpc_client import (
     create_application as grpc_create,
     decide_application as grpc_decide,
+    delete_document as grpc_delete_document,
     get_application as grpc_get,
     get_channel,
     get_document_download_url as grpc_get_download_url,
@@ -191,3 +192,27 @@ async def download_document(
     except grpc.RpcError as e:
         raise grpc_error_to_http(e)
     return DocumentDownloadResponse(url=resp.url)
+
+
+@router.delete(
+    "/{application_id}/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a document (owner or educator, application must be pending)",
+)
+async def delete_document(
+    application_id: str,
+    document_id: str,
+    user: tuple[str, list[str]] = Depends(require_user),
+):
+    user_id, roles = user
+    channel = get_channel()
+    try:
+        await grpc_delete_document(
+            channel,
+            user_id=user_id,
+            roles=roles,
+            application_id=application_id,
+            document_id=document_id,
+        )
+    except grpc.RpcError as e:
+        raise grpc_error_to_http(e)

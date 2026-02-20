@@ -83,3 +83,12 @@ export async function getDocumentDownloadUrl(
   return res.data as { url: string };
 }
 
+export async function deleteDocument(
+  applicationId: string,
+  documentId: string
+): Promise<void> {
+  await apiClient.delete(
+    `/api/v1/applications/${applicationId}/documents/${documentId}`
+  );
+}
+

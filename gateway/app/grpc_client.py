@@ -148,5 +148,22 @@ async def get_document_download_url(
     return await stub.GetDocumentDownloadUrl(req, metadata=_metadata(user_id, roles))
 
 
+async def delete_document(
+    channel: grpc.aio.Channel,
+    user_id: str,
+    roles: list[str],
+    application_id: str,
+    document_id: str,
+):
+    if application_pb2 is None or application_pb2_grpc is None:
+        raise RuntimeError("gRPC generated code not available")
+    stub = application_pb2_grpc.ApplicationServiceStub(channel)
+    req = application_pb2.DeleteDocumentRequest(
+        application_id=application_id,
+        document_id=document_id,
+    )
+    return await stub.DeleteDocument(req, metadata=_metadata(user_id, roles))
+
+
 def get_channel() -> grpc.aio.Channel:
     return grpc.aio.insecure_channel(APPLICATION_GRPC_URL)

@@ -9,12 +9,16 @@ from src.constants.document_type import (
     SCAN_ALLOWED_EXTENSIONS,
     VOICE_ALLOWED_EXTENSIONS,
 )
+import re
+
 from src.domain.exceptions import (
     ApplicationAlreadyDecidedError,
     ApplicationNotFoundError,
+    DocumentNotFoundError,
     ForbiddenApplicationError,
     InvalidDocumentTypeError,
     MinorVoiceRequiredError,
+    ValidationError,
 )
 from src.grpc_clients.auth_client import AuthClientProtocol
 from src.repositories.application_document_repository import ApplicationDocumentRepository
@@ -43,6 +47,15 @@ class ApplicationService:
         reason: str,
         contact_phone: str,
     ) -> tuple[object, bool]:
+        if return_time < leave_time:
+            raise ValidationError("Дата возвращения должна быть не раньше даты выхода")
+        for dt in (leave_time, return_time):
+            if dt.year < 2000 or dt.year > 2100:
+                raise ValidationError("Дата должна быть в диапазоне 2000–2100")
+        digits = re.sub(r"\D", "", contact_phone)
+        if not re.match(r"^[78]?\d{10}$", digits):
+            raise ValidationError("Некорректный формат телефона")
+
         user_info = await self._auth.get_user_info(str(user_id))
         if not user_info:
             raise ForbiddenApplicationError()
@@ -231,12 +244,34 @@ class ApplicationService:
             raise ForbiddenApplicationError()
         doc = await self._doc_repo.get_by_id(document_id)
         if not doc or doc.application_id != application_id:
-            from src.domain.exceptions import DocumentNotFoundError
-
             raise DocumentNotFoundError(str(document_id))
         data, content_type = await self._storage.get_object(object_name=doc.file_url)
         filename = doc.file_url.split("/")[-1] if "/" in doc.file_url else doc.file_url
         return data, content_type, filename
+
+    async def delete_document(
+        self,
+        application_id: UUID,
+        document_id: UUID,
+        current_user_id: UUID,
+        current_user_roles: list[str],
+    ) -> None:
+        app = await self._app_repo.get_by_id(application_id)
+        if not app:
+            raise ApplicationNotFoundError(str(application_id))
+        if app.status != "pending":
+            raise ApplicationAlreadyDecidedError()
+        is_owner = app.user_id == current_user_id
+        is_educator = any(
+            r in current_user_roles for r in ("educator", "educator_head", "admin")
+        )
+        if not is_owner and not is_educator:
+            raise ForbiddenApplicationError()
+        doc = await self._doc_repo.get_by_id(document_id)
+        if not doc or doc.application_id != application_id:
+            raise DocumentNotFoundError(str(document_id))
+        await self._storage.delete_file(doc.file_url)
+        await self._doc_repo.delete(document_id)
 
     async def get_approved_leaves_for_date(
         self,

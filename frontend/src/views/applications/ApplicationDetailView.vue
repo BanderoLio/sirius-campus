@@ -15,6 +15,7 @@ import Select from "@/components/ui/select/Select.vue";
 import Textarea from "@/components/ui/textarea/Textarea.vue";
 import Badge from "@/components/ui/badge/Badge.vue";
 import Alert from "@/components/ui/alert/Alert.vue";
+import { ArrowLeft, FileText, Download, Trash2 } from "lucide-vue-next";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +28,8 @@ const uploading = ref(false);
 const docType = ref("signed_application");
 const fileInput = ref<HTMLInputElement | null>(null);
 const downloadingDocId = ref<string | null>(null);
+const deletingDocId = ref<string | null>(null);
+const uploadError = ref<string | null>(null);
 
 const id = computed(() => route.params.id as string);
 const isPending = computed(() => currentDetail.value?.status === "pending");
@@ -45,6 +48,20 @@ const statusLabel = (s: string) => {
   if (s === "rejected") return "Отклонено";
   return s;
 };
+
+const fileAccept = computed(() => {
+  if (docType.value === "voice_message") return ".mp3,.m4a,.wav";
+  return ".pdf,.jpg,.jpeg,.png";
+});
+
+const VOICE_EXT = [".mp3", ".m4a", ".wav"];
+const SCAN_EXT = [".pdf", ".jpg", ".jpeg", ".png"];
+
+function extensionAllowed(docTypeVal: string, filename: string): boolean {
+  const ext = filename.slice(filename.lastIndexOf(".")).toLowerCase();
+  if (docTypeVal === "voice_message") return VOICE_EXT.includes(ext);
+  return SCAN_EXT.includes(ext);
+}
 
 onMounted(() => {
   store.fetchOne(id.value).catch(() => router.push({ name: "applications" }));
@@ -70,6 +87,15 @@ async function onFileChange(e: Event) {
   const target = e.target as HTMLInputElement;
   const file = target.files?.[0];
   if (!file) return;
+  uploadError.value = null;
+  if (!extensionAllowed(docType.value, file.name)) {
+    uploadError.value =
+      docType.value === "voice_message"
+        ? "Для голосового сообщения допустимы только MP3, M4A, WAV."
+        : "Для этого типа документа допустимы только PDF, JPG, PNG.";
+    if (fileInput.value) fileInput.value.value = "";
+    return;
+  }
   uploading.value = true;
   try {
     await store.uploadDoc(id.value, docType.value, file);
@@ -98,13 +124,24 @@ async function downloadDoc(documentId: string) {
     downloadingDocId.value = null;
   }
 }
+
+async function deleteDoc(documentId: string) {
+  if (!isPending.value) return;
+  deletingDocId.value = documentId;
+  try {
+    await store.deleteDoc(id.value, documentId);
+  } finally {
+    deletingDocId.value = null;
+  }
+}
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center gap-4">
+    <div class="flex flex-wrap items-center gap-4">
       <Button variant="ghost" size="sm" @click="router.push({ name: 'applications' })">
-        ← К списку
+        <ArrowLeft class="mr-2 size-4" />
+        К списку
       </Button>
       <h2 class="text-xl font-semibold">Заявление</h2>
     </div>
@@ -144,9 +181,9 @@ async function downloadDoc(documentId: string) {
               <span class="text-muted-foreground">Телефон:</span>
               {{ currentDetail.contact_phone }}
             </div>
-            <div>
+            <div class="flex items-center gap-2">
               <span class="text-muted-foreground">Статус:</span>
-              <Badge :variant="statusVariant">{{ statusLabel(currentDetail.status) }}</Badge>
+              <Badge :variant="statusVariant" class="min-w-[7rem] justify-center">{{ statusLabel(currentDetail.status) }}</Badge>
             </div>
             <div v-if="currentDetail.reject_reason" class="sm:col-span-2">
               <span class="text-muted-foreground">Причина отклонения:</span>
@@ -158,23 +195,32 @@ async function downloadDoc(documentId: string) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Документы</CardTitle>
+          <CardTitle class="flex items-center gap-2">
+            <FileText class="size-5" />
+            Документы
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert v-if="currentDetail.is_minor" variant="success" class="mb-4">
             Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход.
           </Alert>
+          <Alert v-if="uploadError" variant="destructive" class="mb-4">{{ uploadError }}</Alert>
           <div class="mb-4 flex flex-wrap items-center gap-2">
-            <Select v-model="docType" class="w-48">
-              <option value="signed_application">Скан заявления</option>
-              <option value="parent_letter">Письмо родителя</option>
-              <option value="voice_message">Голосовое сообщение</option>
-            </Select>
+            <Select
+              v-model="docType"
+              class="w-48"
+              :options="[
+                { value: 'signed_application', label: 'Скан заявления' },
+                { value: 'parent_letter', label: 'Письмо родителя' },
+                { value: 'voice_message', label: 'Голосовое сообщение' },
+              ]"
+              placeholder="Тип документа"
+            />
             <input
               ref="fileInput"
               type="file"
               class="hidden"
-              accept=".pdf,.jpg,.jpeg,.png,.mp3,.m4a,.wav"
+              :accept="fileAccept"
               @change="onFileChange"
             />
             <Button
@@ -195,14 +241,28 @@ async function downloadDoc(documentId: string) {
               <span>
                 {{ documentTypeLabel(doc.document_type) }} ({{ doc.id.slice(0, 8) }})
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="downloadingDocId === doc.id"
-                @click="downloadDoc(doc.id)"
-              >
-                {{ downloadingDocId === doc.id ? "..." : "Скачать" }}
-              </Button>
+              <div class="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="downloadingDocId === doc.id"
+                  @click="downloadDoc(doc.id)"
+                >
+                  <Download class="mr-1.5 size-4" />
+                  {{ downloadingDocId === doc.id ? "..." : "Скачать" }}
+                </Button>
+                <Button
+                  v-if="isPending"
+                  variant="outline"
+                  size="sm"
+                  :disabled="deletingDocId === doc.id"
+                  class="text-destructive hover:bg-destructive/10"
+                  @click="deleteDoc(doc.id)"
+                >
+                  <Trash2 class="mr-1.5 size-4" />
+                  {{ deletingDocId === doc.id ? "..." : "Удалить" }}
+                </Button>
+              </div>
             </li>
           </ul>
           <p v-else class="text-muted-foreground">Нет прикреплённых документов.</p>

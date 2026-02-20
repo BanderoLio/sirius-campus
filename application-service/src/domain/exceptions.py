@@ -38,3 +38,10 @@ class ForbiddenApplicationError(ApplicationException):
 class ApplicationAlreadyDecidedError(ApplicationException):
     def __init__(self, cause: Exception | None = None) -> None:
         super().__init__("Application has already been approved or rejected", cause)
+
+
+class ValidationError(ApplicationException):
+    """Raised when request data fails business validation (dates, phone, etc.)."""
+
+    def __init__(self, message: str, cause: Exception | None = None) -> None:
+        super().__init__(message, cause)

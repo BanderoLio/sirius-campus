@@ -14,6 +14,7 @@ from src.domain.exceptions import (
     ForbiddenApplicationError,
     InvalidDocumentTypeError,
     MinorVoiceRequiredError,
+    ValidationError,
 )
 from src.grpc_clients.auth_client import get_auth_client
 from src.grpc_server.grpc_mapping import (
@@ -55,19 +56,22 @@ def _user_name_from_info(info: object | None) -> str | None:
     return f"{last} {first} {patronymic}".strip() or None
 
 
-def _domain_exception_to_grpc(context, exc: Exception) -> None:
-    """Map domain exceptions to gRPC abort. context.abort raises, so callers do not return."""
+async def _domain_exception_to_grpc(context, exc: Exception) -> None:
+    """Map domain exceptions to gRPC abort. context.abort is a coroutine in aio."""
     if isinstance(exc, ApplicationNotFoundError):
-        context.abort(grpc.StatusCode.NOT_FOUND, exc.args[0] if exc.args else "Not found")
+        await context.abort(grpc.StatusCode.NOT_FOUND, exc.args[0] if exc.args else "Not found")
     elif isinstance(exc, DocumentNotFoundError):
-        context.abort(grpc.StatusCode.NOT_FOUND, exc.args[0] if exc.args else "Document not found")
+        await context.abort(grpc.StatusCode.NOT_FOUND, exc.args[0] if exc.args else "Document not found")
     elif isinstance(exc, ForbiddenApplicationError):
-        context.abort(grpc.StatusCode.PERMISSION_DENIED, "Forbidden")
-    elif isinstance(exc, (InvalidDocumentTypeError, MinorVoiceRequiredError, ApplicationAlreadyDecidedError)):
-        context.abort(grpc.StatusCode.INVALID_ARGUMENT, exc.args[0] if exc.args else "Invalid")
+        await context.abort(grpc.StatusCode.PERMISSION_DENIED, "Forbidden")
+    elif isinstance(
+        exc,
+        (InvalidDocumentTypeError, MinorVoiceRequiredError, ApplicationAlreadyDecidedError, ValidationError),
+    ):
+        await context.abort(grpc.StatusCode.INVALID_ARGUMENT, exc.args[0] if exc.args else "Invalid")
     else:
         logger.exception("grpc_handler_error", error=str(exc))
-        context.abort(grpc.StatusCode.INTERNAL, "Internal error")
+        await context.abort(grpc.StatusCode.INTERNAL, "Internal error")
 
 
 class _ApplicationGrpcServicer:
@@ -90,7 +94,7 @@ class _ApplicationGrpcServicer:
         try:
             leave_date = date.fromisoformat(request.date)
         except Exception:
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid date format, expected YYYY-MM-DD")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid date format, expected YYYY-MM-DD")
             return None
 
         building = request.building or None
@@ -129,7 +133,7 @@ class _ApplicationGrpcServicer:
         application_pb2, _ = _import_generated()
         user_id, roles = get_user_context_from_metadata(context)
         if not user_id:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
             return None
 
         try:
@@ -143,7 +147,7 @@ class _ApplicationGrpcServicer:
             if request.date_to:
                 date_to = date.fromisoformat(request.date_to)
         except (ValueError, TypeError) as e:
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
             return None
 
         is_educator = any(r in roles for r in ("educator", "educator_head", "admin"))
@@ -173,7 +177,7 @@ class _ApplicationGrpcServicer:
                     size=size,
                 )
             except Exception as e:
-                _domain_exception_to_grpc(context, e)
+                await _domain_exception_to_grpc(context, e)
                 return None  # unreachable when abort raises
 
             pages = (total + size - 1) // size if total else 0
@@ -200,14 +204,14 @@ class _ApplicationGrpcServicer:
         application_pb2, _ = _import_generated()
         user_id, _ = get_user_context_from_metadata(context)
         if not user_id:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
             return None
 
         try:
             leave_time = datetime.fromisoformat(request.leave_time.replace("Z", "+00:00"))
             return_time = datetime.fromisoformat(request.return_time.replace("Z", "+00:00"))
         except (ValueError, TypeError) as e:
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, f"Invalid datetime: {e}")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, f"Invalid datetime: {e}")
             return None
 
         async with async_session_factory() as session:
@@ -229,7 +233,7 @@ class _ApplicationGrpcServicer:
                 )
                 await session.commit()
             except Exception as e:
-                _domain_exception_to_grpc(context, e)
+                await _domain_exception_to_grpc(context, e)
                 return None
 
             return application_pb2.CreateApplicationResponse(
@@ -240,13 +244,13 @@ class _ApplicationGrpcServicer:
         application_pb2, _ = _import_generated()
         user_id, roles = get_user_context_from_metadata(context)
         if not user_id:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
             return None
 
         try:
             application_id = __import__("uuid").UUID(request.application_id)
         except (ValueError, TypeError):
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id")
             return None
 
         async with async_session_factory() as session:
@@ -265,7 +269,7 @@ class _ApplicationGrpcServicer:
                     current_user_roles=roles,
                 )
             except Exception as e:
-                _domain_exception_to_grpc(context, e)
+                await _domain_exception_to_grpc(context, e)
                 return None
 
             can_decide = any(r in roles for r in ("educator", "educator_head", "admin"))
@@ -295,23 +299,23 @@ class _ApplicationGrpcServicer:
         application_pb2, _ = _import_generated()
         user_id, roles = get_user_context_from_metadata(context)
         if not user_id:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
             return None
 
         is_educator = any(r in roles for r in ("educator", "educator_head", "admin"))
         if not is_educator:
-            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Forbidden")
+            await context.abort(grpc.StatusCode.PERMISSION_DENIED, "Forbidden")
             return None
 
         try:
             application_id = __import__("uuid").UUID(request.application_id)
         except (ValueError, TypeError):
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id")
             return None
 
         status_val = request.status or ""
         if status_val not in ("approved", "rejected"):
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "status must be approved or rejected")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "status must be approved or rejected")
             return None
 
         async with async_session_factory() as session:
@@ -333,7 +337,7 @@ class _ApplicationGrpcServicer:
                 )
                 await session.commit()
             except Exception as e:
-                _domain_exception_to_grpc(context, e)
+                await _domain_exception_to_grpc(context, e)
                 return None
 
             return application_pb2.DecideApplicationResponse(
@@ -344,13 +348,13 @@ class _ApplicationGrpcServicer:
         application_pb2, _ = _import_generated()
         user_id, _ = get_user_context_from_metadata(context)
         if not user_id:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
             return None
 
         try:
             application_id = __import__("uuid").UUID(request.application_id)
         except (ValueError, TypeError):
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id")
             return None
 
         file_content = request.file_content or b""
@@ -376,27 +380,26 @@ class _ApplicationGrpcServicer:
                     filename=filename,
                     uploaded_by=user_id,
                 )
+                doc_proto = model_to_document_proto(application_pb2, doc)
                 await session.commit()
             except Exception as e:
-                _domain_exception_to_grpc(context, e)
+                await _domain_exception_to_grpc(context, e)
                 return None
 
-            return application_pb2.UploadDocumentResponse(
-                document=model_to_document_proto(application_pb2, doc),
-            )
+            return application_pb2.UploadDocumentResponse(document=doc_proto)
 
     async def GetDocumentDownloadUrl(self, request, context):
         application_pb2, _ = _import_generated()
         user_id, roles = get_user_context_from_metadata(context)
         if not user_id:
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
             return None
 
         try:
             application_id = __import__("uuid").UUID(request.application_id)
             document_id = __import__("uuid").UUID(request.document_id)
         except (ValueError, TypeError):
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id or document_id")
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id or document_id")
             return None
 
         async with async_session_factory() as session:
@@ -416,10 +419,47 @@ class _ApplicationGrpcServicer:
                     current_user_roles=roles,
                 )
             except Exception as e:
-                _domain_exception_to_grpc(context, e)
+                await _domain_exception_to_grpc(context, e)
                 return None
 
             return application_pb2.GetDocumentDownloadUrlResponse(url=url)
+
+    async def DeleteDocument(self, request, context):
+        application_pb2, _ = _import_generated()
+        user_id, roles = get_user_context_from_metadata(context)
+        if not user_id:
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-user-id")
+            return None
+
+        try:
+            application_id = __import__("uuid").UUID(request.application_id)
+            document_id = __import__("uuid").UUID(request.document_id)
+        except (ValueError, TypeError):
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid application_id or document_id")
+            return None
+
+        async with async_session_factory() as session:
+            app_repo = ApplicationRepository(session)
+            doc_repo = ApplicationDocumentRepository(session)
+            service = ApplicationService(
+                application_repository=app_repo,
+                document_repository=doc_repo,
+                storage=self._storage,
+                auth_client=self._auth,
+            )
+            try:
+                await service.delete_document(
+                    application_id=application_id,
+                    document_id=document_id,
+                    current_user_id=user_id,
+                    current_user_roles=roles,
+                )
+                await session.commit()
+            except Exception as e:
+                await _domain_exception_to_grpc(context, e)
+                return None
+
+            return application_pb2.DeleteDocumentResponse()
 
 
 async def create_and_start_grpc_server() -> grpc.aio.Server | None:
@@ -457,6 +497,9 @@ async def create_and_start_grpc_server() -> grpc.aio.Server | None:
 
         async def GetDocumentDownloadUrl(self, request, context):
             return await servicer.GetDocumentDownloadUrl(request, context)
+
+        async def DeleteDocument(self, request, context):
+            return await servicer.DeleteDocument(request, context)
 
     application_pb2_grpc.add_ApplicationServiceServicer_to_server(Servicer(), server)
     server.add_insecure_port(f"[::]:{settings.grpc_port}")

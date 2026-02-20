@@ -5,7 +5,8 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      redirect: "/applications",
+      name: "landing",
+      component: () => import("@/views/LandingView.vue"),
     },
     {
       path: "/applications",

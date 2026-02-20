@@ -33,6 +33,8 @@ export const useApplicationsStore = defineStore("applications", () => {
         status: filters.status,
         date_from: filters.date_from,
         date_to: filters.date_to,
+        entrance: filters.entrance,
+        room: filters.room,
       });
       items.value = result.items;
       total.value = result.total;
@@ -128,6 +130,25 @@ export const useApplicationsStore = defineStore("applications", () => {
     }
   }
 
+  async function deleteDoc(applicationId: string, documentId: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      await applicationsApi.deleteDocument(applicationId, documentId);
+      if (currentDetail.value?.id === applicationId && currentDetail.value.documents) {
+        currentDetail.value.documents = currentDetail.value.documents.filter(
+          (d) => d.id !== documentId
+        );
+      }
+    } catch (e) {
+      error.value =
+        e instanceof Error ? e.message : "Ошибка удаления документа";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function $reset() {
     items.value = [];
     total.value = 0;
@@ -154,6 +175,7 @@ export const useApplicationsStore = defineStore("applications", () => {
     create,
     decide,
     uploadDoc,
+    deleteDoc,
     $reset,
   };
 });

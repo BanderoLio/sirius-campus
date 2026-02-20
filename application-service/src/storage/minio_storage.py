@@ -94,3 +94,10 @@ class MinioStorage:
                 response.close()
 
         return await asyncio.to_thread(_get)
+
+    async def delete_file(self, object_name: str) -> None:
+        def _remove() -> None:
+            self._ensure_bucket()
+            self._client.remove_object(self._bucket, object_name)
+
+        await asyncio.to_thread(_remove)

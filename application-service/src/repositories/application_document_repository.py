@@ -56,3 +56,11 @@ class ApplicationDocumentRepository:
             )
         )
         return result.scalar() or 0
+
+    async def delete(self, document_id: UUID) -> bool:
+        from sqlalchemy import delete
+
+        result = await self._session.execute(
+            delete(ApplicationDocumentModel).where(ApplicationDocumentModel.id == document_id)
+        )
+        return result.rowcount > 0

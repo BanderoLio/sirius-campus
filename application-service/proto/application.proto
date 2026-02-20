@@ -10,6 +10,7 @@ service ApplicationService {
   rpc DecideApplication(DecideApplicationRequest) returns (DecideApplicationResponse);
   rpc UploadDocument(UploadDocumentRequest) returns (UploadDocumentResponse);
   rpc GetDocumentDownloadUrl(GetDocumentDownloadUrlRequest) returns (GetDocumentDownloadUrlResponse);
+  rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
 }
 
 // Metadata: x-user-id (UUID), x-user-roles (comma-separated) set by gateway.
@@ -100,6 +101,13 @@ message GetDocumentDownloadUrlRequest {
 message GetDocumentDownloadUrlResponse {
   string url = 1;
 }
+
+message DeleteDocumentRequest {
+  string application_id = 1;
+  string document_id = 2;
+}
+
+message DeleteDocumentResponse {}
 
 message Application {
   string id = 1;

@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 220 14% 96%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -33,7 +33,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -56,4 +56,55 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* VueDatePicker light theme: force light styles so picker is not dark on light theme */
+html:not(.dark) .dp__menu,
+html:not(.dark) .dp__input,
+html:not(.dark) .dp__input_wrap {
+  --dp-background-color: hsl(var(--card));
+  --dp-text-color: hsl(var(--card-foreground));
+  --dp-border-color: hsl(var(--border));
+  --dp-menu-border-color: hsl(var(--border));
+  --dp-hover-color: hsl(var(--accent));
+  --dp-hover-text-color: hsl(var(--accent-foreground));
+  --dp-primary-color: hsl(var(--primary));
+  --dp-primary-text-color: hsl(var(--primary-foreground));
+  --dp-icon-color: hsl(var(--muted-foreground));
+}
+html:not(.dark) .dp__input {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+html:not(.dark) .dp__menu {
+  background-color: hsl(var(--popover));
+  border-color: hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+/* VueDatePicker dark theme: same as page background */
+.dark .dp__menu,
+.dark .dp__input,
+.dark .dp__input_wrap {
+  --dp-background-color: hsl(var(--background));
+  --dp-text-color: hsl(var(--foreground));
+  --dp-border-color: hsl(var(--border));
+  --dp-menu-border-color: hsl(var(--border));
+  --dp-hover-color: hsl(var(--accent));
+  --dp-hover-text-color: hsl(var(--accent-foreground));
+  --dp-primary-color: hsl(var(--primary));
+  --dp-primary-text-color: hsl(var(--primary-foreground));
+  --dp-secondary-color: hsl(var(--muted-foreground));
+  --dp-icon-color: hsl(var(--muted-foreground));
+}
+.dark .dp__menu {
+  background-color: hsl(var(--background));
+  border-color: hsl(var(--border));
+  border-radius: var(--radius);
+}
+.dark .dp__input {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
 }

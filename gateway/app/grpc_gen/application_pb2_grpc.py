@@ -69,6 +69,11 @@ class ApplicationServiceStub(object):
                 request_serializer=application__pb2.GetDocumentDownloadUrlRequest.SerializeToString,
                 response_deserializer=application__pb2.GetDocumentDownloadUrlResponse.FromString,
                 _registered_method=True)
+        self.DeleteDocument = channel.unary_unary(
+                '/campus.application.ApplicationService/DeleteDocument',
+                request_serializer=application__pb2.DeleteDocumentRequest.SerializeToString,
+                response_deserializer=application__pb2.DeleteDocumentResponse.FromString,
+                _registered_method=True)
 
 
 class ApplicationServiceServicer(object):
@@ -116,6 +121,12 @@ class ApplicationServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DeleteDocument(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ApplicationServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -153,6 +164,11 @@ def add_ApplicationServiceServicer_to_server(servicer, server):
                     servicer.GetDocumentDownloadUrl,
                     request_deserializer=application__pb2.GetDocumentDownloadUrlRequest.FromString,
                     response_serializer=application__pb2.GetDocumentDownloadUrlResponse.SerializeToString,
+            ),
+            'DeleteDocument': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteDocument,
+                    request_deserializer=application__pb2.DeleteDocumentRequest.FromString,
+                    response_serializer=application__pb2.DeleteDocumentResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -344,6 +360,33 @@ class ApplicationService(object):
             '/campus.application.ApplicationService/GetDocumentDownloadUrl',
             application__pb2.GetDocumentDownloadUrlRequest.SerializeToString,
             application__pb2.GetDocumentDownloadUrlResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteDocument(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/campus.application.ApplicationService/DeleteDocument',
+            application__pb2.DeleteDocumentRequest.SerializeToString,
+            application__pb2.DeleteDocumentResponse.FromString,
             options,
             channel_credentials,
             insecure,

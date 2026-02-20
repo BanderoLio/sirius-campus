@@ -13,11 +13,13 @@
   },
   "dependencies": {
     "@vee-validate/zod": "^4.14.0",
+    "@vuepic/vue-datepicker": "^12.1.0",
     "@vueuse/core": "^14.2.1",
     "axios": "^1.7.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "lucide-vue-next": "^0.575.0",
     "pinia": "^2.2.0",
     "radix-vue": "^1.9.17",
     "tailwind-merge": "^3.5.0",
