@@ -47,10 +47,14 @@ class ApplicationResponse(BaseModel):
     reject_reason: str | None
     created_at: datetime
     updated_at: datetime
+    user_name: str | None = None
+    room: str | None = None
+    entrance: int | None = None
 
 
 class ApplicationDetailResponse(ApplicationResponse):
     documents: list[DocumentResponse] = []
+    can_decide: bool = False
 
 
 class ApplicationListResponse(BaseModel):

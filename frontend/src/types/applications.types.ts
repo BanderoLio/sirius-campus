@@ -12,6 +12,9 @@ export interface Application {
   reject_reason: string | null;
   created_at: string;
   updated_at: string;
+  user_name?: string | null;
+  room?: string | null;
+  entrance?: number | null;
 }
 
 export interface ApplicationDocument {
@@ -25,6 +28,7 @@ export interface ApplicationDocument {
 
 export interface ApplicationDetail extends Application {
   documents: ApplicationDocument[];
+  can_decide?: boolean;
 }
 
 export interface ApplicationCreateRequest {
@@ -53,4 +57,6 @@ export interface ApplicationListFilters {
   status?: string;
   date_from?: string;
   date_to?: string;
+  entrance?: number;
+  room?: string;
 }

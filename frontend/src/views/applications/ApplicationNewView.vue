@@ -79,6 +79,9 @@ async function submit() {
           required
         />
       </div>
+      <p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход (после создания заявления — в разделе «Документы»).
+      </p>
       <p v-if="error" class="text-red-600">{{ error }}</p>
       <div class="flex gap-2">
         <button

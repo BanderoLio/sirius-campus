@@ -20,6 +20,7 @@ const downloadingDocId = ref<string | null>(null);
 
 const id = computed(() => route.params.id as string);
 const isPending = computed(() => currentDetail.value?.status === "pending");
+const canDecide = computed(() => currentDetail.value?.can_decide === true);
 
 onMounted(() => {
   store.fetchOne(id.value).catch(() => router.push({ name: "applications" }));
@@ -94,6 +95,18 @@ async function downloadDoc(documentId: string) {
     <template v-else-if="currentDetail">
       <div class="rounded border bg-white p-6 shadow">
         <div class="grid gap-4 sm:grid-cols-2">
+          <div v-if="currentDetail.user_name" class="sm:col-span-2">
+            <span class="text-gray-600">ФИО:</span>
+            {{ currentDetail.user_name }}
+          </div>
+          <div v-if="currentDetail.room != null && currentDetail.room !== ''">
+            <span class="text-gray-600">Комната:</span>
+            {{ currentDetail.room }}
+          </div>
+          <div v-if="currentDetail.entrance != null">
+            <span class="text-gray-600">Подъезд:</span>
+            {{ currentDetail.entrance }}
+          </div>
           <div>
             <span class="text-gray-600">Выход:</span>
             {{ formatDateTime(currentDetail.leave_time) }}
@@ -132,6 +145,12 @@ async function downloadDoc(documentId: string) {
 
       <div class="rounded border bg-white p-6 shadow">
         <h3 class="mb-4 font-medium">Документы</h3>
+        <p
+          v-if="currentDetail.is_minor"
+          class="mb-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        >
+          Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход.
+        </p>
         <div class="mb-4 flex flex-wrap gap-2">
           <select v-model="docType" class="rounded border px-3 py-2">
             <option value="signed_application">Скан заявления</option>
@@ -178,7 +197,7 @@ async function downloadDoc(documentId: string) {
       </div>
 
       <div
-        v-if="isPending"
+        v-if="isPending && canDecide"
         class="rounded border bg-white p-6 shadow"
       >
         <h3 class="mb-4 font-medium">Решение (воспитатель)</h3>

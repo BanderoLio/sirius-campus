@@ -16,11 +16,22 @@ from src.api.v1.applications.schemas import (
 )
 from src.dependencies import (
     get_application_service,
+    get_auth_client_dep,
     get_current_user,
 )
+from src.grpc_clients.auth_client import AuthClientProtocol
 from src.services.application_service import ApplicationService
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+
+
+def _user_name_from_info(info: object | None) -> str | None:
+    if info is None:
+        return None
+    last = getattr(info, "last_name", "") or ""
+    first = getattr(info, "first_name", "") or ""
+    patronymic = getattr(info, "patronymic", "") or ""
+    return f"{last} {first} {patronymic}".strip() or None
 
 
 def _to_response(model: object) -> ApplicationResponse:
@@ -50,6 +61,7 @@ async def list_applications(
     date_to: date | None = None,
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: ApplicationService = Depends(get_application_service),
+    auth_client: AuthClientProtocol = Depends(get_auth_client_dep),
 ):
     user_id, roles = current_user
     is_educator = any(
@@ -67,8 +79,19 @@ async def list_applications(
         size=size,
     )
     pages = (total + size - 1) // size if total else 0
+    enriched = []
+    for m in items:
+        r = _to_response(m)
+        user_info = await auth_client.get_user_info(str(m.user_id))
+        payload = r.model_dump()
+        payload.update(
+            user_name=_user_name_from_info(user_info),
+            room=user_info.room if user_info else None,
+            entrance=user_info.entrance if user_info else None,
+        )
+        enriched.append(ApplicationResponse(**payload))
     return ApplicationListResponse(
-        items=[_to_response(m) for m in items],
+        items=enriched,
         total=total,
         page=page,
         size=size,
@@ -107,6 +130,7 @@ async def get_application(
     application_id: UUID,
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: ApplicationService = Depends(get_application_service),
+    auth_client: AuthClientProtocol = Depends(get_auth_client_dep),
 ):
     user_id, roles = current_user
     app = await service.get_application(
@@ -114,7 +138,19 @@ async def get_application(
         current_user_id=user_id,
         current_user_roles=roles,
     )
-    return _to_detail_response(app)
+    detail = _to_detail_response(app)
+    can_decide = any(
+        r in roles for r in ("educator", "educator_head", "admin")
+    )
+    user_info = await auth_client.get_user_info(str(app.user_id))
+    payload = detail.model_dump()
+    payload.update(
+        can_decide=can_decide,
+        user_name=_user_name_from_info(user_info),
+        room=user_info.room if user_info else None,
+        entrance=user_info.entrance if user_info else None,
+    )
+    return ApplicationDetailResponse(**payload)
 
 
 @router.patch(

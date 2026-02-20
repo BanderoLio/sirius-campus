@@ -126,10 +126,7 @@ class ApplicationService:
             raise ApplicationAlreadyDecidedError()
         if status not in ("approved", "rejected"):
             raise InvalidDocumentTypeError(f"status={status}")
-        if app.is_minor:
-            count = await self._doc_repo.count_voice_messages_for_application(application_id)
-            if count == 0:
-                raise MinorVoiceRequiredError()
+        await self.ensure_minor_voice_if_required(application_id)
         updated = await self._app_repo.update_status(
             application_id=application_id,
             status=status,

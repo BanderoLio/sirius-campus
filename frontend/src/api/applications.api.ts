@@ -18,6 +18,8 @@ export async function fetchApplications(
   if (filters.status) params.set("status", filters.status);
   if (filters.date_from) params.set("date_from", filters.date_from);
   if (filters.date_to) params.set("date_to", filters.date_to);
+  if (filters.entrance != null) params.set("entrance", String(filters.entrance));
+  if (filters.room) params.set("room", filters.room);
   const res: AxiosResponse<PaginatedResponse<Application>> = await apiClient.get(
     "/api/v1/applications",
     { params }

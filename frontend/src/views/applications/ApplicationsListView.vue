@@ -11,6 +11,8 @@ const { items, loading, error, page, pages } = storeToRefs(store);
 const statusFilter = ref<string>("");
 const dateFrom = ref("");
 const dateTo = ref("");
+const entranceFilter = ref<number | "">("");
+const roomFilter = ref("");
 
 const statusLabel = (s: string) => {
   const map: Record<string, string> = {
@@ -32,6 +34,8 @@ function applyFilters() {
     status: statusFilter.value || undefined,
     date_from: dateFrom.value || undefined,
     date_to: dateTo.value || undefined,
+    entrance: entranceFilter.value === "" ? undefined : Number(entranceFilter.value),
+    room: roomFilter.value || undefined,
   });
 }
 
@@ -84,6 +88,30 @@ onMounted(() => {
           @change="applyFilters"
         />
       </div>
+      <div>
+        <label class="mb-1 block text-sm">Подъезд</label>
+        <select
+          v-model="entranceFilter"
+          class="rounded border px-3 py-2"
+          @change="applyFilters"
+        >
+          <option value="">Все</option>
+          <option :value="1">1</option>
+          <option :value="2">2</option>
+          <option :value="3">3</option>
+          <option :value="4">4</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm">Комната</label>
+        <input
+          v-model="roomFilter"
+          type="text"
+          placeholder="Напр. 301"
+          class="rounded border px-3 py-2"
+          @change="applyFilters"
+        />
+      </div>
       <div class="flex items-end">
         <button
           type="button"
@@ -107,6 +135,9 @@ onMounted(() => {
       >
         <div class="flex justify-between">
           <span class="font-medium">{{ formatDateTime(app.leave_time) }} — {{ formatDateTime(app.return_time) }}</span>
+          <span v-if="app.user_name || app.room" class="text-sm text-gray-500">
+            {{ [app.user_name, app.room ? `комн. ${app.room}` : null, app.entrance != null ? `подъезд ${app.entrance}` : null].filter(Boolean).join(", ") }}
+          </span>
           <span
             class="rounded px-2 py-0.5 text-sm"
             :class="{
