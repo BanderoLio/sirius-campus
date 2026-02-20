@@ -29,7 +29,7 @@
 | Маршрутизация         | Vue Router 4                |
 | HTTP-клиент           | Axios                       |
 | Валидация форм        | VeeValidate + Zod           |
-| UI-компоненты         | shadcn/ui (Vue port)        |
+| UI-компоненты         | shadcn/ui (Vue port), см. [DESIGN-SYSTEM.md](frontend/DESIGN-SYSTEM.md) |
 | Стилизация            | Tailwind CSS                |
 | Иконки                | Lucide Vue                  |
 | Форматирование        | Prettier                    |
@@ -98,7 +98,7 @@ frontend/
 │   ├── main.ts
 │   └── index.css               # Tailwind directives
 ├── tests/
-├── components.json             # shadcn/ui конфигурация
+├── components.json             # shadcn/ui конфигурация (см. DESIGN-SYSTEM.md)
 ├── tailwind.config.js
 ├── .env.example
 ├── tsconfig.json

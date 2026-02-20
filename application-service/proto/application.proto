@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package campus.application;
+
+service ApplicationService {
+  rpc GetApprovedLeaves(GetApprovedLeavesRequest) returns (GetApprovedLeavesResponse);
+  rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse);
+  rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse);
+  rpc GetApplication(GetApplicationRequest) returns (GetApplicationResponse);
+  rpc DecideApplication(DecideApplicationRequest) returns (DecideApplicationResponse);
+  rpc UploadDocument(UploadDocumentRequest) returns (UploadDocumentResponse);
+  rpc GetDocumentDownloadUrl(GetDocumentDownloadUrlRequest) returns (GetDocumentDownloadUrlResponse);
+  rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
+}
+
+// Metadata: x-user-id (UUID), x-user-roles (comma-separated) set by gateway.
+
+message GetApprovedLeavesRequest {
+  string date = 1;
+  string building = 2;
+  int32 entrance = 3;
+}
+
+message GetApprovedLeavesResponse {
+  repeated LeaveRecord records = 1;
+}
+
+message LeaveRecord {
+  string user_id = 1;
+  string user_name = 2;
+  string room = 3;
+  string leave_time = 4;
+  string return_time = 5;
+  string reason = 6;
+}
+
+message ListApplicationsRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string status = 3;
+  int32 entrance = 4;
+  string room = 5;
+  string date_from = 6;  // YYYY-MM-DD
+  string date_to = 7;
+}
+
+message ListApplicationsResponse {
+  repeated Application items = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 size = 4;
+  int32 pages = 5;
+}
+
+message CreateApplicationRequest {
+  string leave_time = 1;   // ISO 8601
+  string return_time = 2;
+  string reason = 3;
+  string contact_phone = 4;
+}
+
+message CreateApplicationResponse {
+  Application application = 1;
+}
+
+message GetApplicationRequest {
+  string application_id = 1;
+}
+
+message GetApplicationResponse {
+  ApplicationDetail application = 1;
+}
+
+message DecideApplicationRequest {
+  string application_id = 1;
+  string status = 2;         // "approved" | "rejected"
+  string reject_reason = 3;
+}
+
+message DecideApplicationResponse {
+  Application application = 1;
+}
+
+message UploadDocumentRequest {
+  string application_id = 1;
+  string document_type = 2;  // signed_application | parent_letter | voice_message
+  bytes file_content = 3;
+  string content_type = 4;
+  string filename = 5;
+}
+
+message UploadDocumentResponse {
+  Document document = 1;
+}
+
+message GetDocumentDownloadUrlRequest {
+  string application_id = 1;
+  string document_id = 2;
+}
+
+message GetDocumentDownloadUrlResponse {
+  string url = 1;
+}
+
+message DeleteDocumentRequest {
+  string application_id = 1;
+  string document_id = 2;
+}
+
+message DeleteDocumentResponse {}
+
+message Application {
+  string id = 1;
+  string user_id = 2;
+  bool is_minor = 3;
+  string leave_time = 4;
+  string return_time = 5;
+  string reason = 6;
+  string contact_phone = 7;
+  string status = 8;
+  string decided_by = 9;
+  string decided_at = 10;
+  string reject_reason = 11;
+  string created_at = 12;
+  string updated_at = 13;
+  string user_name = 14;
+  string room = 15;
+  int32 entrance = 16;
+}
+
+message ApplicationDetail {
+  Application base = 1;
+  repeated Document documents = 2;
+  bool can_decide = 3;
+}
+
+message Document {
+  string id = 1;
+  string application_id = 2;
+  string document_type = 3;
+  string file_url = 4;
+  string uploaded_by = 5;
+  string created_at = 6;
+}
