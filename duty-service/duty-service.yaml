@@ -1,0 +1,1175 @@
+openapi: 3.0.0
+info:
+  title: Duty Service API
+  description: |
+    Микросервис управления дежурствами проекта «Кампус Сириус».
+
+    Управляет графиком дежурств в комнатах, приёмом и проверкой фотоотчётов
+    о выполнении дежурств, а также категоризацией помещений для фотоотчётов.
+  version: 1.0.0
+  contact:
+    name: Nuclear beavers
+
+servers:
+  - url: http://localhost:8003/api/v1
+    description: Локальный сервер для разработки
+
+tags:
+  - name: Duty Schedules
+    description: Расписание дежурств
+  - name: Duty Reports
+    description: Отчёты по дежурствам
+  - name: Duty Report Images
+    description: Фотографии в отчётах
+  - name: Duty Report Categories
+    description: Категории фотографий
+
+paths:
+  /duties/schedules:
+    get:
+      tags:
+        - Duty Schedules
+      summary: Получить список расписаний дежурств
+      description: |
+        Возвращает список расписаний дежурств с пагинацией.
+        Поддерживает фильтрацию по комнате, дате, статусу.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: room_id
+          in: query
+          required: false
+          description: Фильтр по ID комнаты (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: duty_date_from
+          in: query
+          required: false
+          description: Фильтр по начальной дате дежурства (ISO 8601, YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2025-12-01"
+        - name: duty_date_to
+          in: query
+          required: false
+          description: Фильтр по конечной дате дежурства (ISO 8601, YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2025-12-31"
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу дежурства
+          schema:
+            type: string
+            enum:
+              - pending
+              - active
+              - accepted
+              - overdue
+            example: "pending"
+      responses:
+        '200':
+          description: Список расписаний дежурств
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyScheduleListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Duty Schedules
+      summary: Создать новое расписание дежурства
+      description: |
+        Создаёт новое расписание дежурства для указанной комнаты и даты.
+        Может быть создано только старостой/воспитателем.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyScheduleCreate'
+      responses:
+        '201':
+          description: Расписание дежурства успешно создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyScheduleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Дежурство для данной комнаты на эту дату уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "DUTY_ALREADY_ASSIGNED"
+                  message: "Дежурство для комнаты на указанную дату уже назначено."
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/schedules/{scheduleId}:
+    parameters:
+      - $ref: '#/components/parameters/ScheduleIdParam'
+
+    get:
+      tags:
+        - Duty Schedules
+      summary: Получить расписание дежурства
+      description: Возвращает информацию о конкретном расписании дежурства.
+      responses:
+        '200':
+          description: Расписание дежурства
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyScheduleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - Duty Schedules
+      summary: Полностью обновить расписание дежурства
+      description: |
+        Полностью заменяет данные расписания дежурства.
+        Может быть обновлено только старостой/воспитателем.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyScheduleUpdate'
+      responses:
+        '200':
+          description: Расписание дежурства обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyScheduleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Duty Schedules
+      summary: Частично обновить статус дежурства
+      description: |
+        Частично обновляет расписание дежурства, в основном для изменения статуса.
+        Может быть обновлено только старостой/воспитателем.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutySchedulePatch'
+      responses:
+        '200':
+          description: Расписание дежурства обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyScheduleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Duty Schedules
+      summary: Удалить расписание дежурства
+      description: |
+        Удаляет расписание дежурства. Может быть удалено только старостой/воспитателем.
+      responses:
+        '204':
+          description: Расписание дежурства успешно удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/reports:
+    get:
+      tags:
+        - Duty Reports
+      summary: Получить список отчётов по дежурствам
+      description: |
+        Возвращает список отчётов по дежурствам с пагинацией.
+        Поддерживает фильтрацию по расписанию, статусу, автору.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: schedule_id
+          in: query
+          required: false
+          description: Фильтр по ID расписания дежурства (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: user_id
+          in: query
+          required: false
+          description: Фильтр по ID автора отчёта (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу отчёта
+          schema:
+            type: string
+            enum:
+              - submitted
+              - accepted
+              - rejected
+            example: "submitted"
+      responses:
+        '200':
+          description: Список отчётов по дежурствам
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Duty Reports
+      summary: Создать новый отчёт по дежурству
+      description: |
+        Создаёт новый отчёт по дежурству. Может быть создан студентом,
+        являющимся дежурным. Изначально устанавливается статус `submitted`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyReportCreate'
+      responses:
+        '201':
+          description: Отчёт по дежурству успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Расписание дежурства не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/reports/{reportId}:
+    parameters:
+      - $ref: '#/components/parameters/ReportIdParam'
+
+    get:
+      tags:
+        - Duty Reports
+      summary: Получить отчёт по дежурству
+      description: |
+        Возвращает информацию о конкретном отчёте по дежурству,
+        включая прикреплённые фотографии.
+      responses:
+        '200':
+          description: Отчёт по дежурству
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - Duty Reports
+      summary: Полностью обновить отчёт по дежурству
+      description: Полностью заменяет данные отчёта по дежурству.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyReportUpdate'
+      responses:
+        '200':
+          description: Отчёт по дежурству обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Duty Reports
+      summary: Частично обновить отчёт по дежурству
+      description: |
+        Частично обновляет отчёт, основное назначение — изменение статуса
+        (одобрение/отклонение). При отклонении необходимо указать причину.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyReportPatch'
+      responses:
+        '200':
+          description: Отчёт по дежурству обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Duty Reports
+      summary: Удалить отчёт по дежурству
+      description: Удаляет отчёт по дежурству и все связанные фотографии.
+      responses:
+        '204':
+          description: Отчёт по дежурству успешно удалён
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/reports/{reportId}/images:
+    parameters:
+      - $ref: '#/components/parameters/ReportIdParam'
+
+    get:
+      tags:
+        - Duty Report Images
+      summary: Получить список фотографий в отчёте
+      description: |
+        Возвращает список всех фотографий, прикреплённых к отчёту,
+        с информацией о категориях.
+      parameters:
+        - name: category_id
+          in: query
+          required: false
+          description: Фильтр по ID категории (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Список фотографий в отчёте
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DutyReportImage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Duty Report Images
+      summary: Загрузить фотографию к отчёту
+      description: |
+        Загружает новую фотографию к отчёту и привязывает её к категории.
+        Максимальный размер файла: 5 МБ. Поддерживаемые форматы: JPG, PNG.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyReportImageCreate'
+      responses:
+        '201':
+          description: Фотография успешно загружена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportImage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/reports/images/{imageId}:
+    parameters:
+      - $ref: '#/components/parameters/ImageIdParam'
+
+    get:
+      tags:
+        - Duty Report Images
+      summary: Получить информацию о фотографии
+      description: Возвращает информацию о конкретной фотографии.
+      responses:
+        '200':
+          description: Информация о фотографии
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportImage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Duty Report Images
+      summary: Удалить фотографию из отчёта
+      description: Удаляет фотографию из отчёта и из хранилища (MinIO).
+      responses:
+        '204':
+          description: Фотография успешно удалена
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/categories:
+    get:
+      tags:
+        - Duty Report Categories
+      summary: Получить список категорий фотографий
+      description: |
+        Возвращает список всех доступных категорий для фотографий
+        в отчётах по дежурствам.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Список категорий
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DutyReportCategory'
+                  total:
+                    type: integer
+                    example: 5
+                  page:
+                    type: integer
+                    example: 1
+                  size:
+                    type: integer
+                    example: 20
+                  pages:
+                    type: integer
+                    example: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Duty Report Categories
+      summary: Создать новую категорию
+      description: |
+        Создаёт новую категорию для фотографий в отчётах.
+        Доступно только администраторам/воспитателям.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DutyReportCategoryCreate'
+      responses:
+        '201':
+          description: Категория успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportCategory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Категория с таким названием уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /duties/categories/{categoryId}:
+    parameters:
+      - $ref: '#/components/parameters/CategoryIdParam'
+
+    get:
+      tags:
+        - Duty Report Categories
+      summary: Получить категорию
+      description: Возвращает информацию о конкретной категории.
+      responses:
+        '200':
+          description: Категория
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DutyReportCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Duty Report Categories
+      summary: Удалить категорию
+      description: |
+        Удаляет категорию. Фотографии, привязанные к этой категории,
+        удаляются или переносятся в другую категорию.
+      responses:
+        '204':
+          description: Категория успешно удалена
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы для пагинации (по умолчанию 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        example: 1
+
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      description: Количество элементов на странице (по умолчанию 20, максимум 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        example: 20
+
+    ScheduleIdParam:
+      name: scheduleId
+      in: path
+      required: true
+      description: ID расписания дежурства (UUID)
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    ReportIdParam:
+      name: reportId
+      in: path
+      required: true
+      description: ID отчёта по дежурству (UUID)
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    ImageIdParam:
+      name: imageId
+      in: path
+      required: true
+      description: ID фотографии (UUID)
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    CategoryIdParam:
+      name: categoryId
+      in: path
+      required: true
+      description: ID категории (UUID)
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+  schemas:
+    DutyScheduleResponse:
+      type: object
+      required:
+        - id
+        - room_id
+        - duty_date
+        - assigned_by
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID расписания дежурства
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        room_id:
+          type: string
+          format: uuid
+          description: ID комнаты из auth-service
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        duty_date:
+          type: string
+          format: date
+          description: Дата дежурства (ISO 8601, YYYY-MM-DD)
+          example: "2025-12-01"
+        assigned_by:
+          type: string
+          format: uuid
+          description: ID старосты или воспитателя, назначившего дежурство
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [pending, active, accepted, overdue]
+          description: Статус дежурства
+          example: "pending"
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания записи (ISO 8601)
+          example: "2025-11-25T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления (ISO 8601)
+          example: "2025-11-25T10:30:00Z"
+
+    DutyScheduleCreate:
+      type: object
+      required:
+        - room_id
+        - duty_date
+      properties:
+        room_id:
+          type: string
+          format: uuid
+          description: ID комнаты
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        duty_date:
+          type: string
+          format: date
+          description: Дата дежурства (ISO 8601, YYYY-MM-DD)
+          example: "2025-12-01"
+
+    DutyScheduleUpdate:
+      type: object
+      required:
+        - room_id
+        - duty_date
+        - status
+      properties:
+        room_id:
+          type: string
+          format: uuid
+          description: ID комнаты
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        duty_date:
+          type: string
+          format: date
+          description: Дата дежурства (ISO 8601, YYYY-MM-DD)
+          example: "2025-12-01"
+        status:
+          type: string
+          enum: [pending, active, accepted, overdue]
+          description: Статус дежурства
+          example: "active"
+
+    DutySchedulePatch:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, active, accepted, overdue]
+          description: Новый статус дежурства
+          example: "active"
+
+    DutyScheduleListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+        - pages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DutyScheduleResponse'
+        total:
+          type: integer
+          description: Общее количество расписаний
+          example: 48
+        page:
+          type: integer
+          description: Текущая страница
+          example: 1
+        size:
+          type: integer
+          description: Размер страницы
+          example: 20
+        pages:
+          type: integer
+          description: Общее количество страниц
+          example: 3
+
+    DutyReportResponse:
+      type: object
+      required:
+        - id
+        - schedule_id
+        - user_id
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID отчёта
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        schedule_id:
+          type: string
+          format: uuid
+          description: ID расписания дежурства
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_id:
+          type: string
+          format: uuid
+          description: ID студента, оставившего отчёт
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [submitted, accepted, rejected]
+          description: Статус отчёта
+          example: "submitted"
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания отчёта (ISO 8601)
+          example: "2025-12-01T20:15:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления (ISO 8601)
+          example: "2025-12-01T20:15:00Z"
+        reviewed_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID проверяющего (воспитателя)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Время проверки отчёта (ISO 8601)
+          example: "2025-12-01T22:00:00Z"
+        reject_reason:
+          type: string
+          nullable: true
+          description: Причина отклонения (если status = rejected)
+          example: "Недостаточно фотографий. Необходимо минимум 3 фотографии."
+
+    DutyReportDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/DutyReportResponse'
+        - type: object
+          properties:
+            images:
+              type: array
+              items:
+                $ref: '#/components/schemas/DutyReportImage'
+              description: Список фотографий в отчёте
+
+    DutyReportCreate:
+      type: object
+      required:
+        - schedule_id
+      properties:
+        schedule_id:
+          type: string
+          format: uuid
+          description: ID расписания дежурства
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    DutyReportUpdate:
+      type: object
+      required:
+        - schedule_id
+        - status
+      properties:
+        schedule_id:
+          type: string
+          format: uuid
+          description: ID расписания дежурства
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [submitted, accepted, rejected]
+          description: Статус отчёта
+          example: "accepted"
+
+    DutyReportPatch:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [submitted, accepted, rejected]
+          description: Новый статус отчёта
+          example: "accepted"
+        reject_reason:
+          type: string
+          nullable: true
+          description: Причина отклонения (обязательно при status = rejected)
+          example: "Нечёткие фотографии. Загрузите более качественные снимки."
+
+    DutyReportListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+        - pages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DutyReportResponse'
+        total:
+          type: integer
+          description: Общее количество отчётов
+          example: 120
+        page:
+          type: integer
+          description: Текущая страница
+          example: 1
+        size:
+          type: integer
+          description: Размер страницы
+          example: 20
+        pages:
+          type: integer
+          description: Общее количество страниц
+          example: 6
+
+    DutyReportImage:
+      type: object
+      required:
+        - id
+        - report_id
+        - category_id
+        - photo_url
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID фотографии
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        report_id:
+          type: string
+          format: uuid
+          description: ID отчёта
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        category_id:
+          type: string
+          format: uuid
+          description: ID категории
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        photo_url:
+          type: string
+          format: uri
+          description: URL фотографии в MinIO
+          example: "https://minio.example.com/duty-bucket/photo-550e8400.jpg"
+        created_at:
+          type: string
+          format: date-time
+          description: Дата загрузки (ISO 8601)
+          example: "2025-12-01T20:20:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления (ISO 8601)
+          example: "2025-12-01T20:20:00Z"
+
+    DutyReportImageCreate:
+      type: object
+      required:
+        - category_id
+        - photo_url
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          description: ID категории фотографии
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        photo_url:
+          type: string
+          format: uri
+          description: URL загруженной фотографии (из MinIO)
+          example: "https://minio.example.com/duty-bucket/photo-550e8400.jpg"
+
+    DutyReportCategory:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID категории
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Имя категории (кухня, коворкинг, постирочная и т.д.)
+          example: "Кухня"
+
+    DutyReportCategoryCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Имя категории (максимум 50 символов)
+          example: "Коридор"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - trace_id
+          properties:
+            code:
+              type: string
+              description: Код ошибки с префиксом DUTY_ или общий код
+              example: "DUTY_NOT_FOUND"
+            message:
+              type: string
+              description: Человекочитаемое описание ошибки на русском
+              example: "Дежурство с указанным ID не найдено."
+            trace_id:
+              type: string
+              format: uuid
+              description: ID для отслеживания в логах
+              example: "550e8400-e29b-41d4-a716-446655440000"
+            details:
+              type: object
+              nullable: true
+              description: Дополнительные детали ошибки
+              example: null
+
+  responses:
+    BadRequest:
+      description: Ошибка валидации входных данных (400)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Некорректные входные данные. Проверьте формат даты."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    Unauthorized:
+      description: Не аутентифицирован (401)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Требуется авторизация. Передайте валидный JWT-токен."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    Forbidden:
+      description: Недостаточно прав доступа (403)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "FORBIDDEN"
+              message: "У вас нет прав для выполнения этого действия."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    NotFound:
+      description: Ресурс не найден (404)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "NOT_FOUND"
+              message: "Запрашиваемый ресурс не найден."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    InternalError:
+      description: Внутренняя ошибка сервера (500)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "INTERNAL_ERROR"
+              message: "Внутренняя ошибка сервера. Пожалуйста, повторите попытку позже."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
