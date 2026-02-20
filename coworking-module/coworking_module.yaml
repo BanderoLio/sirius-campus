@@ -1,0 +1,975 @@
+openapi: 3.0.3
+info:
+  title: Coworking Service API
+  description: API модуля управления коворкингами Кампуса Сириус
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8004
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Коворкинги
+    description: Управление коворкинг-пространствами
+  - name: Бронирования
+    description: Управление бронированиями коворкингов
+
+paths:
+  /api/v1/coworkings:
+    get:
+      tags: [Коворкинги]
+      summary: Список коворкингов
+      description: |
+        Получить список коворкинг-пространств с возможностью фильтрации.
+        Роль: student, educator
+      operationId: listCoworkings
+      parameters:
+        - name: building
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Фильтр по корпусу
+        - name: entrance
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Фильтр по подъезду
+        - name: available
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Фильтр по доступности
+      responses:
+        "200":
+          description: Список коворкингов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoworkingResponse"
+              example:
+                - id: 1
+                  name: "Айлант"
+                  building: 8
+                  entrance: 1
+                  number: 5142
+                  available: true
+                - id: 2
+                  name: "Магнолия"
+                  building: 8
+                  entrance: 2
+                  number: 5261
+                  available: true
+                - id: 3
+                  name: "Гранат"
+                  building: 8
+                  entrance: 2
+                  number: 5367
+                  available: false
+                - id: 4
+                  name: "Псоу"
+                  building: 9
+                  entrance: 1
+                  number: 6103
+                  available: true
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /api/v1/coworkings/{coworking_id}:
+    get:
+      tags: [Коворкинги]
+      summary: Получить коворкинг по ID
+      description: |
+        Роль: student, educator
+      operationId: getCoworkingById
+      parameters:
+        - $ref: "#/components/parameters/CoworkingId"
+      responses:
+        "200":
+          description: Информация о коворкинге
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoworkingResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Коворкинг не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: COWORKING_NOT_FOUND
+                  message: "Coworking with id 3 not found"
+                  details: null
+
+  /api/v1/bookings:
+    post:
+      tags: [Бронирования]
+      summary: Создать бронирование
+      description: |
+        Студент создаёт бронирование коворкинга.
+        Статус бронирования устанавливается в `created`.
+        Роль: student
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingCreateRequest"
+      responses:
+        "201":
+          description: Бронирование создано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Коворкинг не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Коворкинг недоступен для бронирования
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: COWORKING_NOT_AVAILABLE
+                  message: "Coworking is not available for booking"
+                  details: null
+
+    get:
+      tags: [Бронирования]
+      summary: Список бронирований
+      description: |
+        Получить список бронирований с фильтрацией.
+        Роль: educator
+      operationId: listBookings
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+          description: Фильтр по статусу
+        - name: coworking_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Фильтр по ID коворкинга
+        - name: student_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Фильтр по ID студента
+        - name: coworking_name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Фильтр по названию коворкинга
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Список бронирований
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+              example:
+                items:
+                  - id: 25
+                    student_id: 14
+                    coworking_id: 3
+                    taken_from: "2026-03-16T09:00:00Z"
+                    returned_back: "2026-03-16T12:00:00Z"
+                    status: created
+                    student:
+                      user_id: 14
+                      last_name: "Тарасенко"
+                      first_name: "Алиса"
+                      patronymic: "Дмитриевна"
+                      building: 8
+                      entrance: 1
+                      room: 5412
+                    coworking:
+                      id: 3
+                      name: "Гранат"
+                      building: 8
+                      entrance: 2
+                      number: 5367
+                      available: true
+                  - id: 21
+                    student_id: 23
+                    coworking_id: 4
+                    taken_from: "2026-03-15T11:00:00Z"
+                    returned_back: "2026-03-15T15:30:00Z"
+                    status: active
+                    student:
+                      user_id: 23
+                      last_name: "Волошин"
+                      first_name: "Матвей"
+                      patronymic: "Андреевич"
+                      building: 8
+                      entrance: 2
+                      room: 5218
+                    coworking:
+                      id: 4
+                      name: "Псоу"
+                      building: 9
+                      entrance: 1
+                      number: 6103
+                      available: false
+                  - id: 15
+                    student_id: 23
+                    coworking_id: 1
+                    taken_from: "2026-03-05T11:00:00Z"
+                    returned_back: "2026-03-05T15:00:00Z"
+                    status: completed
+                    student:
+                      user_id: 23
+                      last_name: "Волошин"
+                      first_name: "Матвей"
+                      patronymic: "Андреевич"
+                      building: 8
+                      entrance: 2
+                      room: 5218
+                    coworking:
+                      id: 1
+                      name: "Айлант"
+                      building: 8
+                      entrance: 1
+                      number: 5142
+                      available: true
+                total: 34
+                limit: 20
+                offset: 0
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/bookings/my:
+    get:
+      tags: [Бронирования]
+      summary: Мои бронирования
+      description: |
+        Получить список бронирований текущего студента.
+        Роль: student
+      operationId: getMyBookings
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+          description: Фильтр по статусу
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Список бронирований студента
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+              example:
+                items:
+                  - id: 25
+                    student_id: 14
+                    coworking_id: 3
+                    taken_from: "2026-03-16T09:00:00Z"
+                    returned_back: "2026-03-16T12:00:00Z"
+                    status: created
+                    student:
+                      user_id: 14
+                      last_name: "Тарасенко"
+                      first_name: "Алиса"
+                      patronymic: "Дмитриевна"
+                      building: 8
+                      entrance: 1
+                      room: 5412
+                    coworking:
+                      id: 3
+                      name: "Гранат"
+                      building: 8
+                      entrance: 2
+                      number: 5367
+                      available: true
+                  - id: 12
+                    student_id: 14
+                    coworking_id: 4
+                    taken_from: "2026-02-25T14:00:00Z"
+                    returned_back: "2026-02-25T17:00:00Z"
+                    status: cancelled
+                    student:
+                      user_id: 14
+                      last_name: "Тарасенко"
+                      first_name: "Алиса"
+                      patronymic: "Дмитриевна"
+                      building: 8
+                      entrance: 1
+                      room: 5412
+                    coworking:
+                      id: 4
+                      name: "Псоу"
+                      building: 9
+                      entrance: 1
+                      number: 6103
+                      available: true
+                total: 2
+                limit: 20
+                offset: 0
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /api/v1/bookings/active:
+    get:
+      tags: [Бронирования]
+      summary: Активные бронирования (дашборд)
+      description: |
+        Дашборд с текущими активными бронированиями.
+        Показывает, кто сейчас находится в коворкинге.
+        Роль: educator
+      operationId: getActiveBookings
+      responses:
+        "200":
+          description: Список активных бронирований
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingDetailResponse"
+              example:
+                - id: 17
+                  student_id: 14
+                  coworking_id: 1
+                  taken_from: "2026-03-15T10:30:00Z"
+                  returned_back: "2026-03-15T14:00:00Z"
+                  status: active
+                  student:
+                    user_id: 14
+                    last_name: "Тарасенко"
+                    first_name: "Алиса"
+                    patronymic: "Дмитриевна"
+                    building: 8
+                    entrance: 1
+                    room: 5412
+                  coworking:
+                    id: 1
+                    name: "Айлант"
+                    building: 8
+                    entrance: 1
+                    number: 5142
+                    available: false
+                - id: 21
+                  student_id: 23
+                  coworking_id: 4
+                  taken_from: "2026-03-15T11:00:00Z"
+                  returned_back: "2026-03-15T15:30:00Z"
+                  status: active
+                  student:
+                    user_id: 23
+                    last_name: "Волошин"
+                    first_name: "Матвей"
+                    patronymic: "Андреевич"
+                    building: 8
+                    entrance: 2
+                    room: 5218
+                  coworking:
+                    id: 4
+                    name: "Псоу"
+                    building: 9
+                    entrance: 1
+                    number: 6103
+                    available: false
+                - id: 24
+                  student_id: 31
+                  coworking_id: 2
+                  taken_from: "2026-03-15T12:00:00Z"
+                  returned_back: "2026-03-15T16:00:00Z"
+                  status: active
+                  student:
+                    user_id: 31
+                    last_name: "Кривенко"
+                    first_name: "Дарья"
+                    patronymic: "Олеговна"
+                    building: 9
+                    entrance: 1
+                    room: 6045
+                  coworking:
+                    id: 2
+                    name: "Магнолия"
+                    building: 8
+                    entrance: 2
+                    number: 5261
+                    available: false
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/bookings/history:
+    get:
+      tags: [Бронирования]
+      summary: История использования коворкингов
+      description: |
+        Получить историю использования коворкингов с фильтрацией
+        по названию, студенту, периоду.
+        Роль: educator
+      operationId: getBookingHistory
+      # Пример запроса: GET /api/v1/bookings/history?coworking_name=Магнолия&date_from=2026-02-01T00:00:00Z&date_to=2026-03-15T23:59:59Z
+      parameters:
+        - name: coworking_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Фильтр по ID коворкинга
+        - name: coworking_name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Фильтр по названию коворкинга
+        - name: student_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Фильтр по ID студента
+        - name: date_from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Начало периода
+        - name: date_to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Конец периода
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: История бронирований
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+              example:
+                items:
+                  - id: 8
+                    student_id: 31
+                    coworking_id: 2
+                    taken_from: "2026-02-10T09:00:00Z"
+                    returned_back: "2026-02-10T12:30:00Z"
+                    status: completed
+                    student:
+                      user_id: 31
+                      last_name: "Кривенко"
+                      first_name: "Дарья"
+                      patronymic: "Олеговна"
+                      building: 9
+                      entrance: 1
+                      room: 6045
+                    coworking:
+                      id: 2
+                      name: "Магнолия"
+                      building: 8
+                      entrance: 2
+                      number: 5261
+                      available: true
+                  - id: 12
+                    student_id: 14
+                    coworking_id: 4
+                    taken_from: "2026-02-25T14:00:00Z"
+                    returned_back: "2026-02-25T17:00:00Z"
+                    status: cancelled
+                    student:
+                      user_id: 14
+                      last_name: "Тарасенко"
+                      first_name: "Алиса"
+                      patronymic: "Дмитриевна"
+                      building: 8
+                      entrance: 1
+                      room: 5412
+                    coworking:
+                      id: 4
+                      name: "Псоу"
+                      building: 9
+                      entrance: 1
+                      number: 6103
+                      available: true
+                  - id: 15
+                    student_id: 23
+                    coworking_id: 1
+                    taken_from: "2026-03-05T11:00:00Z"
+                    returned_back: "2026-03-05T15:00:00Z"
+                    status: completed
+                    student:
+                      user_id: 23
+                      last_name: "Волошин"
+                      first_name: "Матвей"
+                      patronymic: "Андреевич"
+                      building: 8
+                      entrance: 2
+                      room: 5218
+                    coworking:
+                      id: 1
+                      name: "Айлант"
+                      building: 8
+                      entrance: 1
+                      number: 5142
+                      available: true
+                total: 3
+                limit: 20
+                offset: 0
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/bookings/{booking_id}:
+    get:
+      tags: [Бронирования]
+      summary: Получить бронирование по ID
+      description: |
+        Роль: student (только свои), educator (любые)
+      operationId: getBookingById
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Информация о бронировании
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingDetailResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          description: Бронирование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: BOOKING_NOT_FOUND
+                  message: "Booking with id 17 not found"
+                  details: null
+
+  /api/v1/bookings/{booking_id}/confirm:
+    patch:
+      tags: [Бронирования]
+      summary: Подтвердить бронирование (выдать ключ)
+      description: |
+        Воспитатель подтверждает бронирование и выдаёт ключ студенту.
+        Переход статуса: `created` → `active`.
+        Роль: educator
+      operationId: confirmBooking
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Бронирование подтверждено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          description: Бронирование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Некорректный переход статуса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: BOOKING_INVALID_STATUS_TRANSITION
+                  message: "Cannot confirm booking with status 'completed'"
+                  details: null
+
+  /api/v1/bookings/{booking_id}/close:
+    patch:
+      tags: [Бронирования]
+      summary: Закрыть бронирование (принять ключ)
+      description: |
+        Воспитатель принимает ключ у студента и закрывает бронирование.
+        Переход статуса: `active` → `completed`.
+        Роль: educator
+      operationId: closeBooking
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Бронирование закрыто
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          description: Бронирование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Некорректный переход статуса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: BOOKING_INVALID_STATUS_TRANSITION
+                  message: "Cannot close booking with status 'created'"
+                  details: null
+
+  /api/v1/bookings/{booking_id}/cancel:
+    patch:
+      tags: [Бронирования]
+      summary: Отменить бронирование
+      description: |
+        Отмена бронирования студентом или воспитателем.
+        Переход статуса: `created` → `cancelled`.
+        Роль: student (только свои), educator (любые)
+      operationId: cancelBooking
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Бронирование отменено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: Нет доступа к данному бронированию
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: BOOKING_ACCESS_DENIED
+                  message: "You do not have permission to cancel this booking"
+                  details: null
+        "404":
+          description: Бронирование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Некорректный переход статуса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: BOOKING_INVALID_STATUS_TRANSITION
+                  message: "Cannot cancel booking with status 'completed'"
+                  details: null
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT-токен, валидируемый через auth-service (gRPC ValidateToken)
+
+  parameters:
+    CoworkingId:
+      name: coworking_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: ID коворкинга
+
+    BookingId:
+      name: booking_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: ID бронирования
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+      description: Количество записей на странице
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+      description: Смещение от начала списка
+
+  schemas:
+    BookingStatus:
+      type: string
+      enum:
+        - created
+        - active
+        - completed
+        - cancelled
+      description: |
+        Статусы бронирования:
+        - `created` — бронь создана, ожидает подтверждения воспитателем
+        - `active` — ключ выдан, студент использует коворкинг
+        - `completed` — ключ сдан и принят воспитателем
+        - `cancelled` — бронь отменена
+
+    CoworkingResponse:
+      type: object
+      required: [id, name, building, entrance, number, available]
+      properties:
+        id:
+          type: integer
+          example: 3
+        name:
+          type: string
+          maxLength: 50
+          example: "Гранат"
+        building:
+          type: integer
+          example: 8
+        entrance:
+          type: integer
+          example: 2
+        number:
+          type: integer
+          example: 5367
+        available:
+          type: boolean
+          example: true
+
+    BookingCreateRequest:
+      type: object
+      required: [coworking_id, taken_from, returned_back]
+      properties:
+        coworking_id:
+          type: integer
+          description: ID выбранного коворкинга
+          example: 3
+        taken_from:
+          type: string
+          format: date-time
+          description: Дата и время начала бронирования
+          example: "2026-03-15T10:30:00Z"
+        returned_back:
+          type: string
+          format: date-time
+          description: Планируемое время окончания бронирования
+          example: "2026-03-15T14:00:00Z"
+
+    BookingResponse:
+      type: object
+      required: [id, student_id, coworking_id, taken_from, returned_back, status]
+      properties:
+        id:
+          type: integer
+          example: 17
+        student_id:
+          type: integer
+          example: 14
+        coworking_id:
+          type: integer
+          example: 3
+        taken_from:
+          type: string
+          format: date-time
+          example: "2026-03-15T10:30:00Z"
+        returned_back:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-03-15T14:00:00Z"
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+
+    BookingDetailResponse:
+      type: object
+      description: Расширенный ответ с данными студента и коворкинга
+      required:
+        [id, student_id, coworking_id, taken_from, returned_back, status, student, coworking]
+      properties:
+        id:
+          type: integer
+          example: 17
+        student_id:
+          type: integer
+          example: 14
+        coworking_id:
+          type: integer
+          example: 3
+        taken_from:
+          type: string
+          format: date-time
+        returned_back:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        student:
+          $ref: "#/components/schemas/StudentShort"
+        coworking:
+          $ref: "#/components/schemas/CoworkingResponse"
+
+    StudentShort:
+      type: object
+      description: Краткие данные студента (из auth-service GetUserInfo)
+      required: [user_id, last_name, first_name, patronymic, building, entrance, room]
+      properties:
+        user_id:
+          type: integer
+          example: 14
+        last_name:
+          type: string
+          example: "Тарасенко"
+        first_name:
+          type: string
+          example: "Алиса"
+        patronymic:
+          type: string
+          nullable: true
+          example: "Дмитриевна"
+        building:
+          type: integer
+          example: 8
+        entrance:
+          type: integer
+          example: 1
+        room:
+          type: integer
+          example: 5412
+
+    BookingListResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookingDetailResponse"
+        total:
+          type: integer
+          description: Общее количество записей
+          example: 34
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Код ошибки (константа из error_codes.py)
+          example: "COWORKING_NOT_FOUND"
+        message:
+          type: string
+          description: Описание ошибки
+          example: "Coworking with id 3 not found"
+        details:
+          nullable: true
+          description: Дополнительные детали ошибки
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+
+  responses:
+    UnauthorizedError:
+      description: Не авторизован (невалидный или отсутствующий токен)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: AUTH_INVALID_TOKEN
+              message: "Invalid or expired token"
+              details: null
+
+    ForbiddenError:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: AUTH_ACCESS_DENIED
+              message: "Insufficient permissions"
+              details: null
