@@ -27,77 +27,24 @@ application-service зависит от auth-service для валидации J
 
 ### 2.1 REST API
 
-Базовый путь: **`/api/v1/applications`**.
-
-Общие правила: см. ТЗ-0 (формат URL, HTTP-методы, статусы, пагинация, формат ошибок с `trace_id`, заголовки `X-Trace-ID`, `X-Correlation-ID`, `Authorization: Bearer <token>`).
-
-| Метод | Путь | Описание | Права |
-|-------|------|----------|--------|
-| GET | `/api/v1/applications` | Список заявлений с пагинацией и фильтрами (status, entrance, room, date_from, date_to). Для студента — только свои (user_id из JWT), для воспитателя — все/по фильтрам | student, educator* |
-| POST | `/api/v1/applications` | Создание заявления (JSON: leave_time, return_time, reason, contact_phone). is_minor берётся из auth GetUserInfo | student |
-| GET | `/api/v1/applications/{id}` | Получение заявления по ID (с проверкой: свой заявка или роль воспитателя) | student, educator* |
-| PATCH | `/api/v1/applications/{id}` | Одобрение/отклонение (body: status=approved|rejected, reject_reason?). decided_by, decided_at проставляются сервисом | educator* |
-| POST | `/api/v1/applications/{id}/documents` | Загрузка документа (multipart: file, document_type). Типы: signed_application, parent_letter, voice_message | student |
-
-\* educator: роли educator, educator_head, admin.
-
-**Query-параметры для GET списка:**
-
-| Параметр | Тип | По умолчанию | Описание |
-|----------|-----|--------------|----------|
-| page | int | 1 | Номер страницы |
-| size | int | 20 | Размер страницы (≤100) |
-| status | string | — | Фильтр: pending, approved, rejected |
-| entrance | int | — | Подъезд (1–4). Для воспитателя; список обогащается данными из auth (фильтр по user_id по GetUsers или по снимку, если введён) |
-| room | string | — | Номер комнаты |
-| date_from | string (ISO 8601 date) | — | Начало периода по leave_time |
-| date_to | string (ISO 8601 date) | — | Конец периода по leave_time |
-
-**Формат ответа списка:** по ТЗ-0 (items, total, page, size, pages).
-
-**Коды ошибок (префикс APP_):** APP_APPLICATION_NOT_FOUND, APP_DOCUMENT_NOT_FOUND, APP_INVALID_DOCUMENT_TYPE, APP_MINOR_VOICE_REQUIRED, APP_FORBIDDEN, и общие (UNAUTHORIZED, FORBIDDEN, VALIDATION_ERROR, NOT_FOUND, INTERNAL_ERROR).
+**REST API заявлений предоставляется единой точкой входа — Gateway BFF** (порт 8080). Документация: `http://gateway:8080/docs`. application-service **не отдаёт HTTP по заявлениям** — только gRPC. Контракт REST (пути, методы, форматы JSON) описан в документации Gateway и совпадает с прежним контрактом по путям `/api/v1/applications`, query-параметрам и кодам ошибок.
 
 ---
 
-### 2.2 gRPC (для patrol-service)
+### 2.2 gRPC (для Gateway BFF и patrol-service)
 
 Сервис предоставляет метод для получения одобренных заявлений на выход на дату (для обходов).
 
-**Пакет:** `campus.application`, сервис `ApplicationService`.
+**Пакет:** `campus.application`, сервис `ApplicationService`. Контекст пользователя передаётся в метаданных gRPC: `x-user-id`, `x-user-roles` (задаёт Gateway BFF).
 
 | RPC | Описание |
 |-----|----------|
-| `GetApprovedLeaves(GetApprovedLeavesRequest) returns (GetApprovedLeavesResponse)` | Возвращает список одобренных заявлений на выход за указанную дату (и опционально building, entrance). Поля LeaveRecord: user_id, user_name, room, leave_time, return_time, reason. user_name и room при необходимости обогащаются из auth GetUserInfo |
+| `GetApprovedLeaves` | Список одобренных заявлений на выход за дату (building, entrance). Для patrol-service. |
+| `ListApplications` | Список заявлений с пагинацией и фильтрами (page, size, status, entrance, room, date_from, date_to). |
+| `CreateApplication` | Создание заявления (leave_time, return_time, reason, contact_phone). user_id из метаданных. |
+| `GetApplication` | Заявка по ID с документами и can_decide. |
+| `DecideApplication` | Одобрение/отклонение (application_id, status, reject_reason). decided_by из метаданных. |
+| `UploadDocument` | Загрузка документа (application_id, document_type, file_content, content_type, filename). |
+| `GetDocumentDownloadUrl` | Presigned URL для скачивания документа. |
 
-**Proto (как в ТЗ-0):**
-
-```protobuf
-syntax = "proto3";
-
-package campus.application;
-
-service ApplicationService {
-  rpc GetApprovedLeaves(GetApprovedLeavesRequest) returns (GetApprovedLeavesResponse);
-}
-
-message GetApprovedLeavesRequest {
-  string date = 1;       // ISO 8601 дата (YYYY-MM-DD)
-  string building = 2;
-  int32 entrance = 3;     // 0 = все
-}
-
-message GetApprovedLeavesResponse {
-  repeated LeaveRecord records = 1;
-}
-
-message LeaveRecord {
-  string user_id = 1;
-  string user_name = 2;
-  string room = 3;
-  string leave_time = 4;
-  string return_time = 5;
-  string reason = 6;
-}
-```
-
-**Расположение:** `application-service/proto/` или общий `proto/` в корне репозитория. Порт gRPC: **50055**.
+**Расположение proto:** `application-service/proto/application.proto`. Порт gRPC: **50055**. Вызовы идут от Gateway BFF и при необходимости от patrol-service.

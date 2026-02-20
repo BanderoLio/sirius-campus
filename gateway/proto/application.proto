@@ -12,8 +12,6 @@ service ApplicationService {
   rpc GetDocumentDownloadUrl(GetDocumentDownloadUrlRequest) returns (GetDocumentDownloadUrlResponse);
 }
 
-// Metadata: x-user-id (UUID), x-user-roles (comma-separated) set by gateway.
-
 message GetApprovedLeavesRequest {
   string date = 1;
   string building = 2;
@@ -39,7 +37,7 @@ message ListApplicationsRequest {
   string status = 3;
   int32 entrance = 4;
   string room = 5;
-  string date_from = 6;  // YYYY-MM-DD
+  string date_from = 6;
   string date_to = 7;
 }
 
@@ -52,7 +50,7 @@ message ListApplicationsResponse {
 }
 
 message CreateApplicationRequest {
-  string leave_time = 1;   // ISO 8601
+  string leave_time = 1;
   string return_time = 2;
   string reason = 3;
   string contact_phone = 4;
@@ -72,7 +70,7 @@ message GetApplicationResponse {
 
 message DecideApplicationRequest {
   string application_id = 1;
-  string status = 2;         // "approved" | "rejected"
+  string status = 2;
   string reject_reason = 3;
 }
 
@@ -82,7 +80,7 @@ message DecideApplicationResponse {
 
 message UploadDocumentRequest {
   string application_id = 1;
-  string document_type = 2;  // signed_application | parent_letter | voice_message
+  string document_type = 2;
   bytes file_content = 3;
   string content_type = 4;
   string filename = 5;

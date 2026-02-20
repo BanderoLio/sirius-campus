@@ -38,8 +38,8 @@
 
 | Порт | Протокол | Назначение |
 |------|----------|------------|
-| 8005 | HTTP | REST API (/api/v1/applications, /health, /metrics) |
-| 50055 | gRPC | ApplicationService (GetApprovedLeaves) для patrol-service |
+| 8005 | HTTP | Только health и метрики (/health/liveness, /health/readiness, /metrics). REST API вынесен в Gateway BFF. |
+| 50055 | gRPC | ApplicationService (ListApplications, CreateApplication, GetApplication, DecideApplication, UploadDocument, GetDocumentDownloadUrl, GetApprovedLeaves). Вызовы от Gateway BFF и patrol-service. |
 
 ---
 

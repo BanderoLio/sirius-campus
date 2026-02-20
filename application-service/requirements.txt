@@ -10,6 +10,7 @@ grpcio-tools>=1.68.0
 protobuf>=5.28.0
 minio>=7.2.0
 structlog>=24.4.0
+python-logging-loki>=0.3.1
 prometheus-client>=0.21.0
 prometheus-fastapi-instrumentator>=7.0.0
 python-multipart>=0.0.12

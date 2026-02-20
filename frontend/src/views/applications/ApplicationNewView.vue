@@ -2,6 +2,16 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useApplicationsStore } from "@/stores/applications.store";
+import Button from "@/components/ui/button/Button.vue";
+import Card from "@/components/ui/card/Card.vue";
+import CardContent from "@/components/ui/card/CardContent.vue";
+import CardHeader from "@/components/ui/card/CardHeader.vue";
+import CardTitle from "@/components/ui/card/CardTitle.vue";
+import CardFooter from "@/components/ui/card/CardFooter.vue";
+import Input from "@/components/ui/input/Input.vue";
+import Label from "@/components/ui/label/Label.vue";
+import Textarea from "@/components/ui/textarea/Textarea.vue";
+import Alert from "@/components/ui/alert/Alert.vue";
 
 const router = useRouter();
 const store = useApplicationsStore();
@@ -46,58 +56,48 @@ async function submit() {
 <template>
   <div class="mx-auto max-w-lg space-y-6">
     <h2 class="text-xl font-semibold">Новое заявление на выход</h2>
-    <form @submit.prevent="submit" class="space-y-4 rounded border bg-white p-6 shadow">
-      <div>
-        <label class="mb-1 block font-medium">Дата и время выхода</label>
-        <div class="flex gap-2">
-          <input v-model="leaveDate" type="date" class="flex-1 rounded border px-3 py-2" required />
-          <input v-model="leaveTime" type="time" class="w-28 rounded border px-3 py-2" />
-        </div>
-      </div>
-      <div>
-        <label class="mb-1 block font-medium">Дата и время возвращения</label>
-        <div class="flex gap-2">
-          <input v-model="returnDate" type="date" class="flex-1 rounded border px-3 py-2" required />
-          <input v-model="returnTime" type="time" class="w-28 rounded border px-3 py-2" />
-        </div>
-      </div>
-      <div>
-        <label class="mb-1 block font-medium">Цель выхода</label>
-        <textarea
-          v-model="reason"
-          rows="3"
-          class="w-full rounded border px-3 py-2"
-          required
-        />
-      </div>
-      <div>
-        <label class="mb-1 block font-medium">Контактный телефон</label>
-        <input
-          v-model="contactPhone"
-          type="tel"
-          class="w-full rounded border px-3 py-2"
-          required
-        />
-      </div>
-      <p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход (после создания заявления — в разделе «Документы»).
-      </p>
-      <p v-if="error" class="text-red-600">{{ error }}</p>
-      <div class="flex gap-2">
-        <button
-          type="submit"
-          class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          :disabled="submitting"
-        >
-          {{ submitting ? "Сохранение..." : "Подать заявление" }}
-        </button>
-        <router-link
-          to="/applications"
-          class="rounded border px-4 py-2 hover:bg-gray-100"
-        >
-          Отмена
-        </router-link>
-      </div>
-    </form>
+    <Card>
+      <form @submit.prevent="submit">
+        <CardHeader>
+          <CardTitle>Данные заявления</CardTitle>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <div class="space-y-2">
+            <Label>Дата и время выхода</Label>
+            <div class="flex gap-2">
+              <Input v-model="leaveDate" type="date" class="flex-1" required />
+              <Input v-model="leaveTime" type="time" class="w-28" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <Label>Дата и время возвращения</Label>
+            <div class="flex gap-2">
+              <Input v-model="returnDate" type="date" class="flex-1" required />
+              <Input v-model="returnTime" type="time" class="w-28" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <Label>Цель выхода</Label>
+            <Textarea v-model="reason" :rows="3" required />
+          </div>
+          <div class="space-y-2">
+            <Label>Контактный телефон</Label>
+            <Input v-model="contactPhone" type="tel" required />
+          </div>
+          <Alert variant="success">
+            Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход (после создания заявления — в разделе «Документы»).
+          </Alert>
+          <Alert v-if="error" variant="destructive">{{ error }}</Alert>
+        </CardContent>
+        <CardFooter class="flex gap-2">
+          <Button type="submit" :disabled="submitting">
+            {{ submitting ? "Сохранение..." : "Подать заявление" }}
+          </Button>
+          <Button type="button" variant="outline" @click="router.push({ name: 'applications' })">
+            Отмена
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   </div>
 </template>

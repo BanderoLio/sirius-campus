@@ -1,13 +1,19 @@
 services:
   gateway:
-    image: nginx:1.27-alpine
+    build: ./gateway
     ports:
-      - "8080:80"
-    volumes:
-      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - "8080:8080"
+    environment:
+      - APPLICATION_GRPC_URL=application-service:50055
+      - LOKI_URL=http://loki:3100
     depends_on:
       application-service:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/liveness"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   postgres-application:
     image: postgres:15-alpine
@@ -52,6 +58,7 @@ services:
       - AUTH_GRPC_URL=localhost:50051
       - APP_NAME=application-service
       - LOG_LEVEL=INFO
+      - LOKI_URL=http://loki:3100
     depends_on:
       postgres-application:
         condition: service_healthy
@@ -64,6 +71,30 @@ services:
       retries: 3
       start_period: 30s
 
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
+
 volumes:
   pg_application_data:
   minio_data:
+  loki_data:
+  grafana_data:

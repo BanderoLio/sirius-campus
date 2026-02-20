@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import structlog
 from fastapi import FastAPI
@@ -6,12 +7,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
 
-from src.api.v1.applications.routers import router as applications_router
 from src.config import settings
-from src.database import engine
-from src.exceptions import register_exception_handlers
-from src.middleware.tracing import TracingMiddleware
 from src.grpc_server.server import create_and_start_grpc_server
+
+# Logging: console always; Loki when LOKI_URL is set
+log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+if getattr(settings, "loki_url", None) and settings.loki_url.strip():
+    try:
+        from logging_loki import LokiHandler
+
+        log_handlers.append(
+            LokiHandler(
+                url=f"{settings.loki_url.rstrip('/')}/loki/api/v1/push",
+                tags={"service": getattr(settings, "app_name", "application-service")},
+                version="1",
+            )
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    format="%(message)s",
+    handlers=log_handlers,
+)
 
 structlog.configure(
     processors=[
@@ -26,9 +45,10 @@ structlog.configure(
         getattr(logging, settings.log_level.upper(), logging.INFO)
     ),
     context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
+    logger_factory=structlog.stdlib.LoggerFactory(),
     cache_logger_on_first_use=True,
 )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -42,12 +62,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Application Service",
-    description="Exit applications module (Кампус Сириус)",
+    description="Exit applications module (gRPC only); REST is at Gateway BFF.",
     version="0.1.0",
     lifespan=lifespan,
 )
 
-app.add_middleware(TracingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -56,11 +75,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-register_exception_handlers(app)
-
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
-
-app.include_router(applications_router, prefix="/api/v1")
 
 
 @app.get("/health/liveness")
@@ -70,6 +85,7 @@ async def liveness() -> dict:
 
 @app.get("/health/readiness")
 async def readiness() -> dict:
+    from src.database import engine
     from sqlalchemy import text
 
     try:

@@ -5,6 +5,16 @@ import { storeToRefs } from "pinia";
 import { useApplicationsStore } from "@/stores/applications.store";
 import { formatDateTime } from "@/utils/date.utils";
 import { getDocumentDownloadUrl } from "@/api/applications.api";
+import Button from "@/components/ui/button/Button.vue";
+import Card from "@/components/ui/card/Card.vue";
+import CardContent from "@/components/ui/card/CardContent.vue";
+import CardHeader from "@/components/ui/card/CardHeader.vue";
+import CardTitle from "@/components/ui/card/CardTitle.vue";
+import Label from "@/components/ui/label/Label.vue";
+import Select from "@/components/ui/select/Select.vue";
+import Textarea from "@/components/ui/textarea/Textarea.vue";
+import Badge from "@/components/ui/badge/Badge.vue";
+import Alert from "@/components/ui/alert/Alert.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +31,20 @@ const downloadingDocId = ref<string | null>(null);
 const id = computed(() => route.params.id as string);
 const isPending = computed(() => currentDetail.value?.status === "pending");
 const canDecide = computed(() => currentDetail.value?.can_decide === true);
+
+const statusVariant = computed(() => {
+  const s = currentDetail.value?.status;
+  if (s === "approved") return "success";
+  if (s === "rejected") return "destructive";
+  return "secondary";
+});
+
+const statusLabel = (s: string) => {
+  if (s === "pending") return "Ожидает";
+  if (s === "approved") return "Одобрено";
+  if (s === "rejected") return "Отклонено";
+  return s;
+};
 
 onMounted(() => {
   store.fetchOne(id.value).catch(() => router.push({ name: "applications" }));
@@ -79,155 +103,136 @@ async function downloadDoc(documentId: string) {
 <template>
   <div class="space-y-6">
     <div class="flex items-center gap-4">
-      <button
-        type="button"
-        class="text-blue-600 hover:underline"
-        @click="router.push({ name: 'applications' })"
-      >
+      <Button variant="ghost" size="sm" @click="router.push({ name: 'applications' })">
         ← К списку
-      </button>
+      </Button>
       <h2 class="text-xl font-semibold">Заявление</h2>
     </div>
 
-    <p v-if="error" class="text-red-600">{{ error }}</p>
-    <p v-if="loading && !currentDetail" class="text-gray-600">Загрузка...</p>
+    <Alert v-if="error" variant="destructive">{{ error }}</Alert>
+    <p v-if="loading && !currentDetail" class="text-muted-foreground">Загрузка...</p>
 
     <template v-else-if="currentDetail">
-      <div class="rounded border bg-white p-6 shadow">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div v-if="currentDetail.user_name" class="sm:col-span-2">
-            <span class="text-gray-600">ФИО:</span>
-            {{ currentDetail.user_name }}
+      <Card>
+        <CardContent class="p-6">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div v-if="currentDetail.user_name" class="sm:col-span-2">
+              <span class="text-muted-foreground">ФИО:</span>
+              {{ currentDetail.user_name }}
+            </div>
+            <div v-if="currentDetail.room != null && currentDetail.room !== ''">
+              <span class="text-muted-foreground">Комната:</span>
+              {{ currentDetail.room }}
+            </div>
+            <div v-if="currentDetail.entrance != null">
+              <span class="text-muted-foreground">Подъезд:</span>
+              {{ currentDetail.entrance }}
+            </div>
+            <div>
+              <span class="text-muted-foreground">Выход:</span>
+              {{ formatDateTime(currentDetail.leave_time) }}
+            </div>
+            <div>
+              <span class="text-muted-foreground">Возвращение:</span>
+              {{ formatDateTime(currentDetail.return_time) }}
+            </div>
+            <div class="sm:col-span-2">
+              <span class="text-muted-foreground">Цель:</span>
+              {{ currentDetail.reason }}
+            </div>
+            <div>
+              <span class="text-muted-foreground">Телефон:</span>
+              {{ currentDetail.contact_phone }}
+            </div>
+            <div>
+              <span class="text-muted-foreground">Статус:</span>
+              <Badge :variant="statusVariant">{{ statusLabel(currentDetail.status) }}</Badge>
+            </div>
+            <div v-if="currentDetail.reject_reason" class="sm:col-span-2">
+              <span class="text-muted-foreground">Причина отклонения:</span>
+              {{ currentDetail.reject_reason }}
+            </div>
           </div>
-          <div v-if="currentDetail.room != null && currentDetail.room !== ''">
-            <span class="text-gray-600">Комната:</span>
-            {{ currentDetail.room }}
-          </div>
-          <div v-if="currentDetail.entrance != null">
-            <span class="text-gray-600">Подъезд:</span>
-            {{ currentDetail.entrance }}
-          </div>
-          <div>
-            <span class="text-gray-600">Выход:</span>
-            {{ formatDateTime(currentDetail.leave_time) }}
-          </div>
-          <div>
-            <span class="text-gray-600">Возвращение:</span>
-            {{ formatDateTime(currentDetail.return_time) }}
-          </div>
-          <div class="sm:col-span-2">
-            <span class="text-gray-600">Цель:</span>
-            {{ currentDetail.reason }}
-          </div>
-          <div>
-            <span class="text-gray-600">Телефон:</span>
-            {{ currentDetail.contact_phone }}
-          </div>
-          <div>
-            <span class="text-gray-600">Статус:</span>
-            <span
-              class="rounded px-2 py-0.5 text-sm"
-              :class="{
-                'bg-yellow-100': currentDetail.status === 'pending',
-                'bg-green-100': currentDetail.status === 'approved',
-                'bg-red-100': currentDetail.status === 'rejected',
-              }"
-            >
-              {{ currentDetail.status === 'pending' ? 'Ожидает' : currentDetail.status === 'approved' ? 'Одобрено' : 'Отклонено' }}
-            </span>
-          </div>
-          <div v-if="currentDetail.reject_reason" class="sm:col-span-2">
-            <span class="text-gray-600">Причина отклонения:</span>
-            {{ currentDetail.reject_reason }}
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div class="rounded border bg-white p-6 shadow">
-        <h3 class="mb-4 font-medium">Документы</h3>
-        <p
-          v-if="currentDetail.is_minor"
-          class="mb-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
-        >
-          Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход.
-        </p>
-        <div class="mb-4 flex flex-wrap gap-2">
-          <select v-model="docType" class="rounded border px-3 py-2">
-            <option value="signed_application">Скан заявления</option>
-            <option value="parent_letter">Письмо родителя</option>
-            <option value="voice_message">Голосовое сообщение</option>
-          </select>
-          <input
-            ref="fileInput"
-            type="file"
-            class="hidden"
-            accept=".pdf,.jpg,.jpeg,.png,.mp3,.m4a,.wav"
-            @change="onFileChange"
-          />
-          <button
-            v-if="isPending"
-            type="button"
-            class="rounded bg-gray-200 px-4 py-2 hover:bg-gray-300 disabled:opacity-50"
-            :disabled="uploading"
-            @click="triggerUpload"
-          >
-            {{ uploading ? "Загрузка..." : "Прикрепить файл" }}
-          </button>
-        </div>
-        <ul v-if="currentDetail.documents?.length" class="list-disc space-y-1 pl-5">
-          <li
-            v-for="doc in currentDetail.documents"
-            :key="doc.id"
-            class="flex items-center justify-between gap-3"
-          >
-            <span>
-              {{ documentTypeLabel(doc.document_type) }} ({{ doc.id.slice(0, 8) }})
-            </span>
-            <button
-              type="button"
-              class="rounded border px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50"
-              :disabled="downloadingDocId === doc.id"
-              @click="downloadDoc(doc.id)"
+      <Card>
+        <CardHeader>
+          <CardTitle>Документы</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert v-if="currentDetail.is_minor" variant="success" class="mb-4">
+            Для несовершеннолетних необходимо прикрепить голосовое сообщение от родителя с подтверждением согласия на выход.
+          </Alert>
+          <div class="mb-4 flex flex-wrap items-center gap-2">
+            <Select v-model="docType" class="w-48">
+              <option value="signed_application">Скан заявления</option>
+              <option value="parent_letter">Письмо родителя</option>
+              <option value="voice_message">Голосовое сообщение</option>
+            </Select>
+            <input
+              ref="fileInput"
+              type="file"
+              class="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.mp3,.m4a,.wav"
+              @change="onFileChange"
+            />
+            <Button
+              v-if="isPending"
+              variant="secondary"
+              :disabled="uploading"
+              @click="triggerUpload"
             >
-              {{ downloadingDocId === doc.id ? "..." : "Скачать" }}
-            </button>
-          </li>
-        </ul>
-        <p v-else class="text-gray-500">Нет прикреплённых документов.</p>
-      </div>
+              {{ uploading ? "Загрузка..." : "Прикрепить файл" }}
+            </Button>
+          </div>
+          <ul v-if="currentDetail.documents?.length" class="list-disc space-y-1 pl-5">
+            <li
+              v-for="doc in currentDetail.documents"
+              :key="doc.id"
+              class="flex items-center justify-between gap-3"
+            >
+              <span>
+                {{ documentTypeLabel(doc.document_type) }} ({{ doc.id.slice(0, 8) }})
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="downloadingDocId === doc.id"
+                @click="downloadDoc(doc.id)"
+              >
+                {{ downloadingDocId === doc.id ? "..." : "Скачать" }}
+              </Button>
+            </li>
+          </ul>
+          <p v-else class="text-muted-foreground">Нет прикреплённых документов.</p>
+        </CardContent>
+      </Card>
 
-      <div
-        v-if="isPending && canDecide"
-        class="rounded border bg-white p-6 shadow"
-      >
-        <h3 class="mb-4 font-medium">Решение (воспитатель)</h3>
-        <div class="flex flex-wrap gap-4">
-          <label class="flex items-center gap-2">
-            <input v-model="decideStatus" type="radio" value="approved" />
-            Одобрить
-          </label>
-          <label class="flex items-center gap-2">
-            <input v-model="decideStatus" type="radio" value="rejected" />
-            Отклонить
-          </label>
-        </div>
-        <div v-if="decideStatus === 'rejected'" class="mt-4">
-          <label class="mb-1 block text-sm">Причина отклонения</label>
-          <textarea
-            v-model="rejectReason"
-            rows="2"
-            class="w-full rounded border px-3 py-2"
-          />
-        </div>
-        <button
-          type="button"
-          class="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          :disabled="deciding"
-          @click="decide"
-        >
-          {{ deciding ? "Сохранение..." : "Сохранить решение" }}
-        </button>
-      </div>
+      <Card v-if="isPending && canDecide">
+        <CardHeader>
+          <CardTitle>Решение (воспитатель)</CardTitle>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <div class="flex flex-wrap gap-4">
+            <label class="flex items-center gap-2">
+              <input v-model="decideStatus" type="radio" value="approved" />
+              Одобрить
+            </label>
+            <label class="flex items-center gap-2">
+              <input v-model="decideStatus" type="radio" value="rejected" />
+              Отклонить
+            </label>
+          </div>
+          <div v-if="decideStatus === 'rejected'" class="space-y-2">
+            <Label>Причина отклонения</Label>
+            <Textarea v-model="rejectReason" :rows="2" />
+          </div>
+          <Button :disabled="deciding" @click="decide">
+            {{ deciding ? "Сохранение..." : "Сохранить решение" }}
+          </Button>
+        </CardContent>
+      </Card>
     </template>
   </div>
 </template>
