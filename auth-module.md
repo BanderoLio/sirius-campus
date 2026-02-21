@@ -132,6 +132,12 @@ components:
           description: Время обновления профиля
           example: "2001-01-01T15:24:00Z"
           readOnly: true
+        phone:
+          type: string
+          format: phone
+          description: Номер телефона
+          example: "+79000000000"
+          readOnly: true
       required:
         - userId
 
