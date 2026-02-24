@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package campus.patrol;
+
+service PatrolService {
+  // Currently patrol-service only provides REST API
+  // gRPC methods can be added here if needed for inter-service communication
+}
+
+// Empty message for future use
+message Empty {}
