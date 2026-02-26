@@ -25,6 +25,8 @@ const isEducator = computed(() =>
   ["educator", "admin"].includes(activeRole.value),
 );
 
+const isStudent = computed(() => !isEducator.value);
+
 const router = useRouter();
 
 watch(activeRole, (role) => {
@@ -49,6 +51,7 @@ watch(activeRole, (role) => {
             Коворкинги
           </RouterLink>
           <RouterLink
+            v-if="isStudent"
             to="/bookings/my"
             class="text-gray-600 hover:text-gray-900"
             active-class="font-medium text-gray-900"

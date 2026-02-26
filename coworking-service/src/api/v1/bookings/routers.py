@@ -55,7 +55,9 @@ async def create_booking(
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: CoworkingService = Depends(get_coworking_service),
 ) -> BookingResponse:
-    user_id, _ = current_user
+    user_id, roles = current_user
+    if any(r in roles for r in EDUCATOR_ROLES):
+        raise BookingAccessDeniedError()
     booking = await service.create_booking(
         student_id=user_id,
         coworking_id=body.coworking_id,

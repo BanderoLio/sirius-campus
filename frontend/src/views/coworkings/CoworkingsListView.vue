@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useCoworkingsStore } from "@/stores/coworkings.store";
@@ -10,6 +10,12 @@ const { coworkings, loading, error } = storeToRefs(store);
 const buildingFilter = ref<string>("");
 const entranceFilter = ref<string>("");
 const availableFilter = ref<string>("");
+
+const isStudent = computed(() => {
+  const token = localStorage.getItem("access_token") ?? "";
+  const prefix = token.split(":")[0];
+  return !["educator", "admin"].includes(prefix);
+});
 
 function applyFilters() {
   store.fetchCoworkings({
@@ -114,7 +120,7 @@ onMounted(() => {
           <p>Комната {{ cw.number }}</p>
         </div>
         <button
-          v-if="cw.available"
+          v-if="cw.available && isStudent"
           type="button"
           class="mt-4 w-full rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
           @click="bookCoworking(cw.id)"
@@ -122,7 +128,7 @@ onMounted(() => {
           Забронировать
         </button>
         <div
-          v-else
+          v-else-if="!cw.available"
           class="mt-4 w-full rounded bg-gray-100 px-4 py-2 text-center text-sm text-gray-500"
         >
           Недоступен
