@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useCoworkingsStore } from "@/stores/coworkings.store";
 import { formatDateTime } from "@/utils/date.utils";
+import DateInput from "@/components/DateInput.vue";
 
 const router = useRouter();
 const store = useCoworkingsStore();
@@ -13,6 +14,12 @@ const { bookings, loading, error, total, limit, offset } =
 const coworkingName = ref("");
 const dateFrom = ref("");
 const dateTo = ref("");
+
+function ddmmyyyyToIsoDate(s: string): string {
+  const [dd, mm, yyyy] = s.split(".");
+  if (!dd || !mm || !yyyy || yyyy.length < 4) return "";
+  return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+}
 
 const statusLabel: Record<string, string> = {
   created: "Создана",
@@ -35,11 +42,16 @@ function studentName(
   return `${s.last_name} ${s.first_name} ${s.patronymic || ""}`.trim();
 }
 
+function isoFromFilter(ddmmyyyy: string, suffix: string): string | undefined {
+  const iso = ddmmyyyyToIsoDate(ddmmyyyy);
+  return iso ? `${iso}${suffix}` : undefined;
+}
+
 function applyFilters() {
   store.fetchBookingHistory({
     coworking_name: coworkingName.value || undefined,
-    date_from: dateFrom.value ? `${dateFrom.value}T00:00:00Z` : undefined,
-    date_to: dateTo.value ? `${dateTo.value}T23:59:59Z` : undefined,
+    date_from: isoFromFilter(dateFrom.value, "T00:00:00Z"),
+    date_to: isoFromFilter(dateTo.value, "T23:59:59Z"),
     limit: 20,
     offset: 0,
   });
@@ -48,8 +60,8 @@ function applyFilters() {
 function goToPage(newOffset: number) {
   store.fetchBookingHistory({
     coworking_name: coworkingName.value || undefined,
-    date_from: dateFrom.value ? `${dateFrom.value}T00:00:00Z` : undefined,
-    date_to: dateTo.value ? `${dateTo.value}T23:59:59Z` : undefined,
+    date_from: isoFromFilter(dateFrom.value, "T00:00:00Z"),
+    date_to: isoFromFilter(dateTo.value, "T23:59:59Z"),
     limit: limit.value,
     offset: newOffset,
   });
@@ -81,21 +93,11 @@ onMounted(() => {
       </div>
       <div>
         <label class="mb-1 block text-sm">Дата с</label>
-        <input
-          v-model="dateFrom"
-          type="date"
-          class="rounded border px-3 py-2"
-          @change="applyFilters"
-        />
+        <DateInput v-model="dateFrom" @change="applyFilters" />
       </div>
       <div>
         <label class="mb-1 block text-sm">Дата по</label>
-        <input
-          v-model="dateTo"
-          type="date"
-          class="rounded border px-3 py-2"
-          @change="applyFilters"
-        />
+        <DateInput v-model="dateTo" @change="applyFilters" />
       </div>
       <div class="flex items-end">
         <button

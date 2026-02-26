@@ -27,7 +27,11 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
+  let token = localStorage.getItem("access_token");
+  if (!token && import.meta.env.DEV) {
+    token = "dev-stub-token";
+    localStorage.setItem("access_token", token);
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

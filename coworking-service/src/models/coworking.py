@@ -5,8 +5,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 
-from src.models.coworking_booking import CoworkingBookingModel
-
 
 class CoworkingModel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "coworkings"

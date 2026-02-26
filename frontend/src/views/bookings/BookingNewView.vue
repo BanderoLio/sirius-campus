@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useCoworkingsStore } from "@/stores/coworkings.store";
 import { storeToRefs } from "pinia";
+import DateInput from "@/components/DateInput.vue";
+import TimeInput from "@/components/TimeInput.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -21,10 +23,17 @@ const selectedCoworking = computed(() =>
   coworkings.value.find((c) => c.id === selectedCoworkingId.value),
 );
 
-function buildIso(date: string, time: string): string {
-  if (!date) return "";
+function ddmmyyyyToIsoDate(s: string): string {
+  const [dd, mm, yyyy] = s.split(".");
+  if (!dd || !mm || !yyyy || yyyy.length < 4) return "";
+  return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+}
+
+function buildIso(dateDDMMYYYY: string, time: string): string {
+  const isoDate = ddmmyyyyToIsoDate(dateDDMMYYYY);
+  if (!isoDate) return "";
   const [h, m] = (time || "00:00").split(":");
-  return `${date}T${h || "00"}:${m || "00"}:00.000Z`;
+  return `${isoDate}T${h || "00"}:${m || "00"}:00.000Z`;
 }
 
 async function submit() {
@@ -109,35 +118,17 @@ onMounted(() => {
 
       <div>
         <label class="mb-1 block font-medium">Дата и время получения</label>
-        <div class="flex gap-2">
-          <input
-            v-model="takenFromDate"
-            type="date"
-            class="flex-1 rounded border px-3 py-2"
-            required
-          />
-          <input
-            v-model="takenFromTime"
-            type="time"
-            class="w-28 rounded border px-3 py-2"
-          />
+        <div class="flex items-start gap-2">
+          <DateInput v-model="takenFromDate" required class="flex-1" />
+          <TimeInput v-model="takenFromTime" />
         </div>
       </div>
 
       <div>
         <label class="mb-1 block font-medium">Дата и время возврата</label>
-        <div class="flex gap-2">
-          <input
-            v-model="returnedBackDate"
-            type="date"
-            class="flex-1 rounded border px-3 py-2"
-            required
-          />
-          <input
-            v-model="returnedBackTime"
-            type="time"
-            class="w-28 rounded border px-3 py-2"
-          />
+        <div class="flex items-start gap-2">
+          <DateInput v-model="returnedBackDate" required class="flex-1" />
+          <TimeInput v-model="returnedBackTime" />
         </div>
       </div>
 
