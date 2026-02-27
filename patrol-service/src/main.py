@@ -4,6 +4,8 @@ import sys
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
 
@@ -63,6 +65,9 @@ app = FastAPI(
     description="Микросервис обходов проекта «Кампус Сириус».",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 app.add_middleware(
