@@ -1,3 +1,6 @@
+include:
+  - ./patrol-service/docker-compose.yml
+
 services:
   gateway:
     build: ./gateway
