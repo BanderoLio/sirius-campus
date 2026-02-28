@@ -34,14 +34,6 @@ class PatrolService:
         building: str,
         entrance: int,
     ) -> object:
-        # Validate building
-        if building not in ("8", "9"):
-            raise ValidationError("Корпус должен быть 8 или 9")
-        
-        # Validate entrance
-        if entrance < 1 or entrance > 4:
-            raise ValidationError("Подъезд должен быть от 1 до 4")
-
         # Check if patrol already exists
         existing = await self._patrol_repo.get_by_date_building_entrance(
             patrol_date=patrol_date,

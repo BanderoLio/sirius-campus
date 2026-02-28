@@ -87,6 +87,11 @@ docker build -t patrol-service .
 docker run -p 8002:8002 patrol-service
 ```
 
+### docker-compose
+```bash
+docker-compose up --build patrol-service
+```
+
 ## Переменные окружения
 
 | Переменная               | Обязательная | Описание                              |
