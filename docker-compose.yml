@@ -1,3 +1,6 @@
+include:
+  - ./patrol-service/docker-compose.yml
+
 services:
   gateway:
     build: ./gateway
@@ -27,22 +30,6 @@ services:
       - pg_application_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U campus -d application_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  postgres-patrol:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: campus
-      POSTGRES_PASSWORD: campus_secret
-      POSTGRES_DB: patrol_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - pg_patrol_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U campus -d patrol_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -87,27 +74,6 @@ services:
       retries: 3
       start_period: 30s
 
-  patrol-service:
-    build: ./patrol-service
-    env_file:
-      - ./patrol-service/.env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://campus:campus_secret@postgres-patrol:5432/patrol_db
-      - APP_NAME=patrol-service
-      - LOG_LEVEL=INFO
-      - LOKI_URL=http://loki:3100
-    ports:
-      - "8002:8002"
-    depends_on:
-      postgres-patrol:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health/liveness"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-
   loki:
     image: grafana/loki:2.9.0
     ports:
@@ -132,7 +98,6 @@ services:
 
 volumes:
   pg_application_data:
-  pg_patrol_data:
   minio_data:
   loki_data:
   grafana_data:
