@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package campus.auth;
+
+service AuthService {
+  // Validate JWT token and get user data
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // Get user info by ID
+  rpc GetUserInfo(GetUserInfoRequest) returns (UserInfoResponse);
+
+  // Get list of users by filters (room, entrance, building)
+  rpc GetUsers(GetUsersRequest) returns (GetUsersResponse);
+
+  // Check user role
+  rpc CheckUserRole(CheckUserRoleRequest) returns (CheckUserRoleResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  repeated string roles = 3;
+  string building = 4;
+  int32 entrance = 5;
+  int32 floor = 6;
+  string room = 7;
+}
+
+message GetUserInfoRequest {
+  string user_id = 1;
+}
+
+message UserInfoResponse {
+  string user_id = 1;
+  string last_name = 2;
+  string first_name = 3;
+  string patronymic = 4;
+  string building = 5;
+  int32 entrance = 6;
+  int32 floor = 7;
+  string room = 8;
+  repeated string roles = 9;
+  string phone = 10;
+  string email = 11;
+  bool is_minor = 12;
+}
+
+message GetUsersRequest {
+  string building = 1;
+  int32 entrance = 2;
+  int32 floor = 3;
+  string room = 4;
+  string role = 5;
+  int32 page = 6;
+  int32 size = 7;
+}
+
+message GetUsersResponse {
+  repeated UserInfoResponse users = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 size = 4;
+  int32 pages = 5;
+}
+
+message CheckUserRoleRequest {
+  string user_id = 1;
+  string required_role = 2;
+}
+
+message CheckUserRoleResponse {
+  bool has_role = 1;
+}

@@ -1,0 +1,57 @@
+version: '3.9'
+
+services:
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_USER: campus
+      POSTGRES_PASSWORD: campus_secret
+      POSTGRES_DB: auth_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: auth-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://campus:campus_secret@postgres-auth:5432/auth_db
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-this-in-production
+      DEBUG: "true"
+    ports:
+      - '8001:8001'
+      - '50051:50051'
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+
+volumes:
+  pg_auth_data:
+  redis_data:
