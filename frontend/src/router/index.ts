@@ -27,6 +27,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: "/patrols",
+      name: "patrols",
+      component: () => import("@/views/patrols/PatrolsListView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/patrols/new",
+      name: "patrol-new",
+      component: () => import("@/views/patrols/PatrolNewView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/patrols/:id",
+      name: "patrol-detail",
+      component: () => import("@/views/patrols/PatrolDetailView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/login",
       name: "login",
       component: () => import("@/views/LoginView.vue"),

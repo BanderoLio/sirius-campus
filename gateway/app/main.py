@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import LOKI_URL
-from app.routers import applications
+from app.routers import applications, patrols
 
 # Logging: console always; Loki when LOKI_URL is set
 _root = logging.getLogger()
@@ -49,3 +49,4 @@ def health_liveness():
 
 
 app.include_router(applications.router, prefix="/api/v1")
+app.include_router(patrols.router, prefix="/api/v1")
