@@ -121,3 +121,62 @@ pytest --cov=src
 - `GET /health/liveness` - проверка живучести сервиса
 - `GET /health/readiness` - проверка готовности (включая БД)
 - `GET /metrics` - метрики Prometheus
+
+## Фронтенд
+
+Для patrol-service реализован фронтенд в директории `frontend/`:
+
+### Запуск
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Создайте файл `.env` на основе `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Настройте переменные окружения:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000          # Основной API
+VITE_PATROL_API_BASE_URL=http://localhost:8002    # Patrol Service API (опционально)
+```
+
+#### Доступные скрипты
+
+- `npm run dev` — запуск dev-сервера
+- `npm run build` — сборка для продакшена
+- `npm run preview` — preview сборки
+- `npm run lint` — проверка линтером
+- `npm run format` — форматирование кода
+
+### Маршруты
+
+- `/patrols` — список всех обходов с фильтрами
+- `/patrols/new` — создание нового обхода
+- `/patrols/:id` — детали обхода и управление записями студентов
+
+### Структура файлов
+
+```
+frontend/src/
+├── api/patrols.api.ts       # API-клиент для обходов
+├── stores/patrols.store.ts  # Pinia store для управления состоянием
+├── types/patrols.types.ts    # TypeScript типы
+└── views/patrols/
+    ├── PatrolsListView.vue  # Список обходов
+    ├── PatrolNewView.vue    # Создание нового обхода
+    └── PatrolDetailView.vue # Детали обхода и проверка студентов
+```
+
+### Функциональность
+
+1. **Список обходов** — просмотр всех обходов с фильтрацией по дате, корпусу, подъезду и статусу
+2. **Создание обхода** — начало нового сеанса обхода с указанием даты, корпуса и подъезда
+3. **Детали обхода** — просмотр списка студентов, отметка присутствия/отсутствия
+4. **Завершение обхода** — перевод обхода в статус "Завершён"

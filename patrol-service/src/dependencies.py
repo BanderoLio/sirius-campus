@@ -3,19 +3,29 @@ from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, status
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database import get_session
 from src.grpc_clients.auth_client import AuthClientProtocol, get_auth_client
 from src.grpc_clients.application_client import ApplicationClientProtocol, get_application_client
-from src.repositories.mock_patrol_repository import get_mock_patrol_repository
-from src.repositories.mock_patrol_entry_repository import get_mock_patrol_entry_repository
+from src.repositories.patrol_repository import PatrolRepository
+from src.repositories.patrol_entry_repository import PatrolEntryRepository
 from src.services.patrol_service import PatrolService
 
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    async for session in get_session():
+        yield session
 
-def get_patrol_repository():
-    return get_mock_patrol_repository()
+async def get_patrol_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> PatrolRepository:
+    return PatrolRepository(session=session)
 
 
-def get_patrol_entry_repository():
-    return get_mock_patrol_entry_repository()
+async def get_patrol_entry_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> PatrolEntryRepository:
+    return PatrolEntryRepository(session=session)
 
 
 def get_auth_client_dep() -> AuthClientProtocol:

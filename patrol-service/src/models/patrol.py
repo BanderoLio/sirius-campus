@@ -10,12 +10,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 
 
-class PatrolModel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class PatrolModel(Base, TimestampMixin):
     __tablename__ = "patrols"
 
     __table_args__ = (
-        CheckConstraint("building IN ('8', '9')", name="ck_patrols_building"),
-        CheckConstraint("entrance BETWEEN 1 AND 4", name="ck_patrols_entrance"),
         CheckConstraint("status IN ('in_progress', 'completed')", name="ck_patrols_status"),
         UniqueConstraint("date", "building", "entrance", name="uq_patrols_date_building_entrance"),
     )
