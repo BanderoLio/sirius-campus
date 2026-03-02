@@ -83,12 +83,14 @@ class PatrolRepository:
         patrol_date: date,
         building: str,
         entrance: int,
+        patrol_by: UUID,
         started_at,
     ) -> PatrolModel:
         model = PatrolModel(
             date=patrol_date,
             building=building,
             entrance=entrance,
+            patrol_by=patrol_by,
             status="in_progress",
             started_at=started_at,
         )

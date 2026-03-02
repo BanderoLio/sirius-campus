@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from uuid import UUID
 
 from src.domain.exceptions import (
@@ -8,11 +8,18 @@ from src.domain.exceptions import (
     PatrolNotFoundError,
     PatrolNotInProgressError,
     ValidationError,
+    ForbiddenError,
 )
 from src.grpc_clients.auth_client import AuthClientProtocol
 from src.grpc_clients.application_client import ApplicationClientProtocol
 from src.repositories.patrol_repository import PatrolRepository
 from src.repositories.patrol_entry_repository import PatrolEntryRepository
+
+# Роли, которым разрешено создавать обходы
+PATROL_CREATOR_ROLES = frozenset({"student_patrol", "educator", "educator_head", "admin"})
+
+# Время, после которого разрешены обходы (22:00)
+PATROL_START_TIME = time(22, 0)
 
 
 class PatrolService:
@@ -28,12 +35,37 @@ class PatrolService:
         self._auth = auth_client
         self._application = application_client
 
+    def _validate_patrol_time(self) -> None:
+        """Проверяет, что текущее время позволяет создавать обходы (после 22:00)."""
+        current_time = datetime.now(timezone.utc).time()
+        if current_time < PATROL_START_TIME:
+            raise ValidationError(
+                f"Обходы можно создавать только после {PATROL_START_TIME.strftime('%H:%M')} UTC"
+            )
+
+    def _validate_user_roles(self, roles: list[str]) -> None:
+        """Проверяет, что у пользователя есть права на создание обхода."""
+        if not any(role in PATROL_CREATOR_ROLES for role in roles):
+            raise ForbiddenError(
+                "У вас нет прав на создание обхода. Требуются роли: student_patrol, educator, educator_head или admin"
+            )
+
     async def create_patrol(
         self,
         patrol_date: date,
         building: str,
-        entrance: int,
+        entrance: str,
+        patrol_by: UUID,
+        user_roles: list[str],
     ) -> object:
+        # Проверка прав пользователя
+        self._validate_user_roles(user_roles)
+        
+        # Проверка времени (только для будущих дат)
+        today = datetime.now(timezone.utc).date()
+        if patrol_date >= today:
+            self._validate_patrol_time()
+
         # Check if patrol already exists
         existing = await self._patrol_repo.get_by_date_building_entrance(
             patrol_date=patrol_date,
@@ -53,20 +85,21 @@ class PatrolService:
             patrol_date=patrol_date,
             building=building,
             entrance=entrance,
+            patrol_by=patrol_by,
             started_at=started_at,
         )
 
         # Get minor students from auth-service
         minor_students = await self._auth.get_minor_students_by_entrance(
             building=building,
-            entrance=entrance,
+            entrance=int(entrance),
         )
 
         # Get approved leaves from application-service
         approved_leaves = await self._application.get_approved_leaves(
             date=str(patrol_date),
             building=building,
-            entrance=entrance,
+            entrance=int(entrance),
         )
 
         # Create a map of user_id -> leave record for quick lookup
@@ -106,7 +139,7 @@ class PatrolService:
         *,
         patrol_date: date | None = None,
         building: str | None = None,
-        entrance: int | None = None,
+        entrance: str | None = None,
         status: str | None = None,
         page: int = 1,
         size: int = 20,

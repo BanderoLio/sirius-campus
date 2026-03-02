@@ -143,8 +143,7 @@ cp .env.example .env
 Настройте переменные окружения:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:8000          # Основной API
-VITE_PATROL_API_BASE_URL=http://localhost:8002    # Patrol Service API (опционально)
+VITE_API_BASE_URL=http://localhost:8080          # Gateway (основной API - шлюз)
 ```
 
 #### Доступные скрипты

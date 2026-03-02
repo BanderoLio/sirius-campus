@@ -14,6 +14,7 @@ from src.config import settings
 from src.api.v1 import api_router
 from src.exceptions import register_exception_handlers
 from src.middleware import TracingMiddleware
+from src.grpc_server import create_and_start_grpc_server
 
 # Logging: console always; Loki when LOKI_URL is set
 log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
@@ -55,12 +56,20 @@ structlog.configure(
 )
 
 
+grpc_server = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # No gRPC server needed for patrol-service (it's a REST API service)
+    global grpc_server
+    # Start gRPC server
+    grpc_server = await create_and_start_grpc_server()
     # Configure Swagger UI security scheme
     setup_security_scheme(app.openapi())
     yield
+    # Shutdown gRPC server
+    if grpc_server:
+        await grpc_server.stop(0)
 
 
 app = FastAPI(

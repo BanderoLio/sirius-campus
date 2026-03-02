@@ -6,12 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class PatrolCreateRequest(BaseModel):
     date: date
-    building: str = Field(..., pattern="^(8|9)$")
-    entrance: int = Field(..., ge=1, le=4)
+    building: str = Field(..., max_length=10)
+    entrance: str = Field(..., max_length=10)
 
 
 class PatrolUpdateRequest(BaseModel):
-    status: str = Field(..., pattern="^completed$")
+    status: str = Field(..., max_length=20)
 
 
 class PatrolEntryUpdateRequest(BaseModel):
@@ -39,7 +39,8 @@ class PatrolResponse(BaseModel):
     patrol_id: UUID
     date: date
     building: str
-    entrance: int
+    entrance: str
+    patrol_by: UUID
     status: str
     started_at: datetime
     submitted_at: datetime | None

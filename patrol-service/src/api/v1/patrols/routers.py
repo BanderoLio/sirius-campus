@@ -43,9 +43,9 @@ async def list_patrols(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     patrol_date: date | None = Query(None, alias="date"),
-    building: str | None = Query(None, pattern="^(8|9)$"),
-    entrance: int | None = Query(None, ge=1, le=4),
-    status_filter: str | None = Query(None, alias="status", pattern="^(in_progress|completed)$"),
+    building: str | None = Query(None),
+    entrance: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: PatrolService = Depends(get_patrol_service),
 ):
@@ -78,10 +78,13 @@ async def create_patrol(
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: PatrolService = Depends(get_patrol_service),
 ):
+    user_id, user_roles = current_user
     patrol = await service.create_patrol(
         patrol_date=body.date,
         building=body.building,
         entrance=body.entrance,
+        patrol_by=user_id,
+        user_roles=user_roles,
     )
     return _to_detail_response(patrol)
 
