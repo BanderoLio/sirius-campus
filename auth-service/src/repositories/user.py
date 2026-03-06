@@ -9,7 +9,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models.database import Educator, Role, Student, User, UserRole
+from src.models.database import Educator, RefreshToken, Role, Student, User, UserRole
 
 
 class UserRepository:
@@ -144,7 +144,7 @@ class UserRepository:
 
     async def get_user_roles(self, user: User) -> list[str]:
         """Get user roles as list of strings."""
-        return [role.value for role in user.roles]
+        return [role.role.value for role in user.roles]
 
 
 class StudentRepository:

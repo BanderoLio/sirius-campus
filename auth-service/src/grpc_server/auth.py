@@ -199,15 +199,28 @@ class AuthServiceServicer:
 
 async def serve_grpc():
     """Start gRPC server."""
+    import logging
     from proto import auth_pb2_grpc
 
-    server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
-    auth_pb2_grpc.add_AuthServiceServicer_to_server(
-        AuthServiceServicer(), server
-    )
-    server.add_insecure_port(f"[::]:{settings.GRPC_PORT}")
-    await server.start()
-    await server.wait_for_termination()
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"Starting gRPC server on port {settings.GRPC_PORT}")
+
+        server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
+        auth_pb2_grpc.add_AuthServiceServicer_to_server(
+            AuthServiceServicer(), server
+        )
+        port = server.add_insecure_port(f"[::]:{settings.GRPC_PORT}")
+        logger.info(f"gRPC server bound to port {port}")
+        
+        await server.start()
+        logger.info(f"gRPC server started successfully on port {settings.GRPC_PORT}")
+        
+        await server.wait_for_termination()
+    except Exception as e:
+        logger.error(f"gRPC server error: {e}", exc_info=True)
+        raise
 
 
 # Import generated proto modules (will be created by grpcio-tools)

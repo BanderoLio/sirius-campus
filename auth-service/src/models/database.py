@@ -1,6 +1,7 @@
 """
 Database models for the auth-service.
 """
+from typing import Optional
 import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum

@@ -10,14 +10,19 @@ from src.core.config import get_settings
 
 settings = get_settings()
 
-# Create async engine
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DATABASE_ECHO,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    poolclass=NullPool if settings.DEBUG else None,
-)
+# Create async engine - use NullPool for asyncpg compatibility
+# In production, use a proper connection pool
+if settings.DEBUG:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DATABASE_ECHO,
+        poolclass=NullPool,
+    )
+else:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DATABASE_ECHO,
+    )
 
 # Create async session factory
 async_session_factory = async_sessionmaker(

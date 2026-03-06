@@ -23,6 +23,7 @@ from src.schemas.auth import (
     TokenResponse,
     UserLogin,
     UserResponse,
+    UserUpdate,
     UserWithProfile,
 )
 from src.schemas.error import AuthErrorCode, ErrorResponse
