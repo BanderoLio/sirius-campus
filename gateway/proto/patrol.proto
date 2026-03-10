@@ -38,6 +38,19 @@ message ListPatrolsRequest {
   string status = 6;         // статус
 }
 
+message PatrolSummary {
+  string patrol_id = 1;
+  string date = 2;
+  string building = 3;
+  string entrance = 4;
+  string status = 5;
+  string started_at = 6;
+  string submitted_at = 7;
+  int32 entries_count = 8;
+  int32 present_count = 9;
+  int32 absent_count = 10;
+}
+
 message ListPatrolsResponse {
   repeated PatrolSummary items = 1;
   int32 total = 2;
@@ -57,33 +70,7 @@ message GetPatrolsForDateResponse {
   repeated PatrolSummary patrols = 1;
 }
 
-message PatrolSummary {
-  string patrol_id = 1;
-  string date = 2;
-  string building = 3;
-  string entrance = 4;
-  string status = 5;
-  string started_at = 6;
-  string submitted_at = 7;
-  int32 entries_count = 8;
-  int32 present_count = 9;
-  int32 absent_count = 10;
-}
 
-message PatrolSummary {
-  string patrol_id = 1;
-  string date = 2;
-  string building = 3;
-  string entrance = 4;
-  string status = 5;
-  string started_at = 6;
-  string submitted_at = 7;
-  int32 entries_count = 8;
-  int32 present_count = 9;
-  int32 absent_count = 10;
-}
-
-// Запрос на получение деталей обхода
 message GetPatrolDetailsRequest {
   string patrol_id = 1;
 }

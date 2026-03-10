@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, String, CheckConstraint, UniqueConstraint, ForeignKey
+from sqlalchemy import Date, DateTime, SmallInteger, String, CheckConstraint, UniqueConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,7 +25,7 @@ class PatrolModel(Base, TimestampMixin):
     )
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     building: Mapped[str] = mapped_column(String(1), nullable=False)
-    entrance: Mapped[str] = mapped_column(String(10), nullable=False)
+    entrance: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     patrol_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         nullable=False,

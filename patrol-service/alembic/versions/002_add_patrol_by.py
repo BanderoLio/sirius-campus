@@ -19,12 +19,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Change entrance from SMALLINT to VARCHAR(10)
-    op.alter_column('patrols', 'entrance',
-                   existing_type=sa.SmallInteger(),
-                   type_=sa.String(10),
-                   existing_nullable=False)
-    
     # Add patrol_by column as UUID
     op.add_column(
         'patrols',
@@ -49,7 +43,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index('idx_patrols_patrol_by', table_name='patrols')
     op.drop_column('patrols', 'patrol_by')
-    op.alter_column('patrols', 'entrance',
-                   existing_type=sa.String(10),
-                   type_=sa.SmallInteger(),
-                   existing_nullable=False)

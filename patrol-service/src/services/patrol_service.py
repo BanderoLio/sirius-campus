@@ -19,7 +19,7 @@ from src.repositories.patrol_entry_repository import PatrolEntryRepository
 PATROL_CREATOR_ROLES = frozenset({"student_patrol", "educator", "educator_head", "admin"})
 
 # Время, после которого разрешены обходы (22:00)
-PATROL_START_TIME = time(22, 0)
+PATROL_START_TIME = time(0, 0)
 
 
 class PatrolService:
@@ -54,7 +54,7 @@ class PatrolService:
         self,
         patrol_date: date,
         building: str,
-        entrance: str,
+        entrance: int,
         patrol_by: UUID,
         user_roles: list[str],
     ) -> object:
@@ -139,7 +139,7 @@ class PatrolService:
         *,
         patrol_date: date | None = None,
         building: str | None = None,
-        entrance: str | None = None,
+        entrance: int | None = None,
         status: str | None = None,
         page: int = 1,
         size: int = 20,

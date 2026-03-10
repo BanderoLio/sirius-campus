@@ -31,8 +31,6 @@ def upgrade() -> None:
         sa.Column('submitted_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.CheckConstraint("building IN ('8', '9')", name='ck_patrols_building'),
-        sa.CheckConstraint('entrance BETWEEN 1 AND 4', name='ck_patrols_entrance'),
         sa.CheckConstraint("status IN ('in_progress', 'completed')", name='ck_patrols_status'),
         sa.UniqueConstraint('date', 'building', 'entrance', name='uq_patrols_date_building_entrance'),
     )

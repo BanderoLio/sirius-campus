@@ -126,4 +126,4 @@ async def liveness() -> dict:
 
 @app.get("/health/readiness")
 async def readiness() -> dict:
-    return {"status": "ok", "database": "mock"}
+    return {"status": "ok"}

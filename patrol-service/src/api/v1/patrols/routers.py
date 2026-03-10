@@ -44,7 +44,7 @@ async def list_patrols(
     size: int = Query(20, ge=1, le=100),
     patrol_date: date | None = Query(None, alias="date"),
     building: str | None = Query(None),
-    entrance: str | None = Query(None),
+    entrance: int | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: PatrolService = Depends(get_patrol_service),

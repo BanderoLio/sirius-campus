@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class PatrolCreateRequest(BaseModel):
     date: date
     building: str = Field(..., max_length=10)
-    entrance: str = Field(..., max_length=10)
+    entrance: int
 
 
 class PatrolUpdateRequest(BaseModel):
@@ -39,7 +39,7 @@ class PatrolResponse(BaseModel):
     patrol_id: UUID
     date: date
     building: str
-    entrance: str
+    entrance: int
     patrol_by: UUID
     status: str
     started_at: datetime

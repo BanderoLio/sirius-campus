@@ -69,68 +69,66 @@ class _PatrolGrpcServicer:
         self._application = get_application_client()
 
     async def ListPatrols(self, request, context):
-        try:
-            # Parse optional date
-            patrol_date = None
-            if request.date:
-                try:
-                    patrol_date = date.fromisoformat(request.date)
-                except ValueError:
-                    await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid date format, expected YYYY-MM-DD")
-                    return None
+        patrol_date = None
+        if request.date:
+            try:
+                patrol_date = date.fromisoformat(request.date)
+            except ValueError:
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid date format, expected YYYY-MM-DD")
+                return None
 
-            # Parse optional entrance
-            entrance = None
-            if request.entrance:
-                try:
-                    entrance = int(request.entrance)
-                except ValueError:
-                    await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid entrance, expected integer")
-                    return None
+        # Parse optional entrance
+        entrance = None
+        if request.entrance:
+            try:
+                entrance = int(request.entrance)
+            except ValueError:
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid entrance, expected integer")
+                return None
 
-            async with async_session_factory() as session:
-                patrol_repo = PatrolRepository(session)
-                entry_repo = PatrolEntryRepository(session)
+        async with async_session_factory() as session:
+            patrol_repo = PatrolRepository(session)
+            entry_repo = PatrolEntryRepository(session)
 
-                items, total = await patrol_repo.get_list(
-                    patrol_date=patrol_date,
-                    building=request.building or None,
-                    entrance=entrance,
-                    status=request.status or None,
-                    page=request.page,
-                    size=request.size,
-                )
-
-            patrol_pb2, _ = _import_generated()
-            patrols = []
-            for patrol in items:
-                entries = await entry_repo.get_by_patrol_id(patrol.patrol_id)
-                present_count = sum(1 for e in entries if e.is_present is True)
-                absent_count = sum(1 for e in entries if e.is_present is False)
-
-                patrol_proto = patrol_pb2.PatrolSummary(
-                    patrol_id=str(patrol.patrol_id),
-                    date=patrol.date.isoformat(),
-                    building=patrol.building,
-                    entrance=str(patrol.entrance),
-                    status=patrol.status,
-                    started_at=patrol.started_at.isoformat() if patrol.started_at else "",
-                    submitted_at=patrol.submitted_at.isoformat() if patrol.submitted_at else "",
-                    entries_count=len(entries),
-                    present_count=present_count,
-                    absent_count=absent_count,
-                )
-                patrols.append(patrol_proto)
-
-            pages = (total + request.size - 1) // request.size if request.size > 0 else 0
-
-            return patrol_pb2.ListPatrolsResponse(
-                items=patrols,
-                total=total,
+            items, total = await patrol_repo.get_list(
+                patrol_date=patrol_date,
+                building=request.building or None,
+                entrance=entrance,
+                status=request.status or None,
                 page=request.page,
                 size=request.size,
-                pages=pages,
             )
+
+        patrol_pb2, _ = _import_generated()
+        patrols = []
+        for patrol in items:
+            entries = await entry_repo.get_by_patrol_id(patrol.patrol_id)
+            present_count = sum(1 for e in entries if e.is_present is True)
+            absent_count = sum(1 for e in entries if e.is_present is False)
+
+            patrol_proto = patrol_pb2.PatrolSummary(
+                patrol_id=str(patrol.patrol_id),
+                date=patrol.date.isoformat(),
+                building=patrol.building,
+                entrance=str(patrol.entrance),
+                status=patrol.status,
+                started_at=patrol.started_at.isoformat() if patrol.started_at else "",
+                submitted_at=patrol.submitted_at.isoformat() if patrol.submitted_at else "",
+                entries_count=len(entries),
+                present_count=present_count,
+                absent_count=absent_count,
+            )
+            patrols.append(patrol_proto)
+
+        pages = (total + request.size - 1) // request.size if request.size > 0 else 0
+
+        return patrol_pb2.ListPatrolsResponse(
+            items=patrols,
+            total=total,
+            page=request.page,
+            size=request.size,
+            pages=pages,
+        )
 
     async def GetPatrolsForDate(self, request, context):
         try:

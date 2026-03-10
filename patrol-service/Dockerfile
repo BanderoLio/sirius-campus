@@ -12,9 +12,13 @@ RUN poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi --no-root --only main
 
 FROM base AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 COPY . .
+
+RUN pip install grpcio-tools -q && \
+    python -m grpc_tools.protoc -I proto --python_out=src/grpc_server --grpc_python_out=src/grpc_server proto/patrol.proto
 
 EXPOSE 8002 50052
 
