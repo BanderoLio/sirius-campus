@@ -1,0 +1,3 @@
+"""
+Auth Service package.
+"""
