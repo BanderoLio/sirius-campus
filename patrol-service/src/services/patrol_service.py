@@ -1,6 +1,8 @@
 from datetime import date, datetime, time, timezone
 from uuid import UUID
 
+import structlog
+
 from src.domain.exceptions import (
     PatrolAlreadyCompletedError,
     PatrolAlreadyExistsError,
@@ -18,9 +20,9 @@ from src.repositories.patrol_entry_repository import PatrolEntryRepository
 # Роли, которым разрешено создавать обходы
 PATROL_CREATOR_ROLES = frozenset({"student_patrol", "educator", "educator_head", "admin"})
 
-# Время, после которого разрешены обходы (22:00)
 PATROL_START_TIME = time(0, 0)
 
+logger = structlog.get_logger(__name__)
 
 class PatrolService:
     def __init__(
@@ -125,6 +127,15 @@ class PatrolService:
         if entries_to_create:
             await self._entry_repo.create_batch(entries_to_create)
 
+        logger.info(
+            "patrol_created",
+            patrol_id=str(patrol.patrol_id),
+            building=building,
+            entrance=entrance,
+            patrol_date=str(patrol_date),
+            patrol_by=str(patrol_by),
+            entries_count=len(entries_to_create),
+        )
         # Return patrol with entries
         return await self._patrol_repo.get_by_id_with_entries(patrol.patrol_id)
 
@@ -132,6 +143,7 @@ class PatrolService:
         patrol = await self._patrol_repo.get_by_id_with_entries(patrol_id)
         if not patrol:
             raise PatrolNotFoundError(str(patrol_id))
+        logger.debug("patrol_retrieved", patrol_id=str(patrol_id))
         return patrol
 
     async def list_patrols(
@@ -167,14 +179,25 @@ class PatrolService:
             status="completed",
             submitted_at=submitted_at,
         )
-        
+        logger.info(
+            "patrol_completed",
+            patrol_id=str(patrol_id),
+            submitted_at=submitted_at.isoformat(),
+        )
         return await self._patrol_repo.get_by_id_with_entries(patrol_id)
 
     async def delete_patrol(self, patrol_id: UUID) -> bool:
         patrol = await self._patrol_repo.get_by_id(patrol_id)
         if not patrol:
             raise PatrolNotFoundError(str(patrol_id))
-        return await self._patrol_repo.delete(patrol_id)
+        result = await self._patrol_repo.delete(patrol_id)
+        logger.info(
+            "patrol_deleted",
+            patrol_id=str(patrol_id),
+            building=patrol.building,
+            entrance=patrol.entrance,
+        )
+        return result
 
     async def get_patrol_entry(
         self,
@@ -220,5 +243,10 @@ class PatrolService:
             absence_reason=absence_reason,
             checked_at=checked_at,
         )
-        
+        logger.info(
+            "patrol_entry_updated",
+            patrol_id=str(patrol_id),
+            patrol_entry_id=str(patrol_entry_id),
+            is_present=is_present,
+        )
         return updated
