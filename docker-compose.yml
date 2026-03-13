@@ -1,16 +1,21 @@
 include:
+  - ./patrol-service/docker-compose.yml
   - coworking-service/docker-compose.yml
 
 services:
   gateway:
     build: ./gateway
     ports:
-      - "8080:8080"
+      - "8080:80"
     environment:
       - APPLICATION_GRPC_URL=application-service:50055
+      - PATROL_GRPC_URL=patrol-service:50052
       - LOKI_URL=http://loki:3100
+      - "8080:8080"
     depends_on:
       application-service:
+        condition: service_healthy
+      patrol-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/liveness"]

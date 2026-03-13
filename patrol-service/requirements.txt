@@ -1,0 +1,17 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+grpcio>=1.68.0
+grpcio-tools>=1.68.0
+protobuf>=5.28.0
+structlog>=24.4.0
+python-logging-loki>=0.3.1
+prometheus-client>=0.21.0
+prometheus-fastapi-instrumentator>=7.0.0
+python-multipart>=0.0.12
+httpx>=0.27.0
+swagger-ui>=0.7.0
