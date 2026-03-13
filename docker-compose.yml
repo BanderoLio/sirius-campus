@@ -1,3 +1,6 @@
+include:
+  - coworking-service/docker-compose.yml
+
 services:
   gateway:
     build: ./gateway

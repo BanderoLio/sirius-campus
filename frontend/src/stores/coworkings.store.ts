@@ -180,6 +180,23 @@ export const useCoworkingsStore = defineStore("coworkings", () => {
     }
   }
 
+  async function requestCloseBooking(id: string, returnedBack: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const updated = await api.requestCloseBooking(id, returnedBack);
+      if (currentBooking.value?.id === id) {
+        currentBooking.value = { ...currentBooking.value, ...updated };
+      }
+      return updated;
+    } catch (e) {
+      error.value = extractErrorMessage(e);
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function cancelBooking(id: string) {
     loading.value = true;
     error.value = null;
@@ -228,6 +245,7 @@ export const useCoworkingsStore = defineStore("coworkings", () => {
     fetchBooking,
     confirmBooking,
     closeBooking,
+    requestCloseBooking,
     cancelBooking,
     $reset,
   };

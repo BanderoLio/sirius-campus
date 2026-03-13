@@ -122,6 +122,17 @@ export async function closeBooking(id: string): Promise<Booking> {
   return res.data;
 }
 
+export async function requestCloseBooking(
+  id: string,
+  returned_back: string,
+): Promise<Booking> {
+  const res: AxiosResponse<Booking> = await apiClient.patch(
+    `/api/v1/bookings/${id}/request-close`,
+    { returned_back },
+  );
+  return res.data;
+}
+
 export async function cancelBooking(id: string): Promise<Booking> {
   const res: AxiosResponse<Booking> = await apiClient.patch(
     `/api/v1/bookings/${id}/cancel`,

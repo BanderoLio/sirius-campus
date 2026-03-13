@@ -17,7 +17,7 @@ export interface StudentShort {
   room: string;
 }
 
-export type BookingStatus = "created" | "active" | "completed" | "cancelled";
+export type BookingStatus = "created" | "active" | "pending_close" | "completed" | "cancelled";
 
 export interface Booking {
   id: string;
@@ -43,7 +43,6 @@ export interface BookingListResponse {
 export interface BookingCreateRequest {
   coworking_id: string;
   taken_from: string;
-  returned_back: string;
 }
 
 export interface BookingListFilters {

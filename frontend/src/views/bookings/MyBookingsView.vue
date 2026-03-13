@@ -7,13 +7,13 @@ import { formatDateTime } from "@/utils/date.utils";
 
 const router = useRouter();
 const store = useCoworkingsStore();
-const { bookings, loading, error, total, limit, offset } =
-  storeToRefs(store);
+const { bookings, loading, error, total, limit, offset } = storeToRefs(store);
 const statusFilter = ref<string>("");
 
 const statusLabel: Record<string, string> = {
   created: "Создана",
   active: "Активна",
+  pending_close: "Ожидает приемки",
   completed: "Завершена",
   cancelled: "Отменена",
 };
@@ -21,6 +21,7 @@ const statusLabel: Record<string, string> = {
 const statusClass: Record<string, string> = {
   created: "bg-yellow-100 text-yellow-800",
   active: "bg-blue-100 text-blue-800",
+  pending_close: "bg-orange-100 text-orange-800",
   completed: "bg-green-100 text-green-800",
   cancelled: "bg-gray-100 text-gray-600",
 };
@@ -65,29 +66,19 @@ onMounted(() => {
           <option value="">Все</option>
           <option value="created">Создана</option>
           <option value="active">Активна</option>
+          <option value="pending_close">Ожидает приемки</option>
           <option value="completed">Завершена</option>
           <option value="cancelled">Отменена</option>
         </select>
       </div>
     </div>
 
-    <p
-      v-if="error"
-      class="text-red-600"
-    >
+    <p v-if="error" class="text-red-600">
       {{ error }}
     </p>
-    <p
-      v-if="loading"
-      class="text-gray-600"
-    >
-      Загрузка...
-    </p>
+    <p v-if="loading" class="text-gray-600">Загрузка...</p>
 
-    <div
-      v-else
-      class="space-y-2"
-    >
+    <div v-else class="space-y-2">
       <div
         v-for="b in bookings"
         :key="b.id"
@@ -96,11 +87,10 @@ onMounted(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <span class="font-medium">{{ b.coworking?.name || "Коворкинг" }}</span>
-            <span
-              v-if="b.coworking"
-              class="ml-2 text-sm text-gray-500"
-            >
+            <span class="font-medium">{{
+              b.coworking?.name || "Коворкинг"
+            }}</span>
+            <span v-if="b.coworking" class="ml-2 text-sm text-gray-500">
               комн. {{ b.coworking.number }}
             </span>
           </div>
@@ -125,10 +115,7 @@ onMounted(() => {
       Бронирований нет
     </p>
 
-    <div
-      v-if="total > limit"
-      class="flex justify-center gap-2"
-    >
+    <div v-if="total > limit" class="flex justify-center gap-2">
       <button
         class="rounded border px-3 py-1 disabled:opacity-50"
         :disabled="offset <= 0"

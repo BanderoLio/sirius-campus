@@ -34,7 +34,7 @@ _bearer = HTTPBearer(auto_error=False)
 app = FastAPI(
     title="Coworking Service",
     description=(
-        "Coworking space management module (Sirius-Campus)\n\n"
+        "Coworking module (Sirius-Campus)\n\n"
         "**Dev-токены:** `student:dev`, `educator:dev`, `admin:dev`"
     ),
     swagger_ui_parameters={"persistAuthorization": True},

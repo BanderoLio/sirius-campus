@@ -1,10 +1,3 @@
-"""Initial coworkings and coworking_bookings tables
-
-Revision ID: 001
-Revises:
-Create Date: 2026-02-26
-
-"""
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -19,7 +12,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "coworkings",
+        "coworking",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("name", sa.String(length=50), nullable=False),
         sa.Column("building", sa.Integer(), nullable=False),
@@ -43,12 +36,12 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "coworking_bookings",
+        "coworking_booking",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("student_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("coworking_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("taken_from", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("returned_back", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("returned_back", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "status",
             sa.String(length=20),
@@ -67,31 +60,31 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(["coworking_id"], ["coworkings.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["coworking_id"], ["coworking.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_coworking_bookings_student_id",
-        "coworking_bookings",
+        "ix_coworking_booking_student_id",
+        "coworking_booking",
         ["student_id"],
         unique=False,
     )
     op.create_index(
-        "ix_coworking_bookings_coworking_id",
-        "coworking_bookings",
+        "ix_coworking_booking_coworking_id",
+        "coworking_booking",
         ["coworking_id"],
         unique=False,
     )
     op.create_index(
-        "ix_coworking_bookings_status",
-        "coworking_bookings",
+        "ix_coworking_booking_status",
+        "coworking_booking",
         ["status"],
         unique=False,
     )
 
     op.execute(
         """
-        INSERT INTO coworkings (id, name, building, entrance, number, available) VALUES
+        INSERT INTO coworking (id, name, building, entrance, number, available) VALUES
         (gen_random_uuid(), 'Айлант', 8, 1, 5142, true),
         (gen_random_uuid(), 'Магнолия', 8, 2, 5261, true),
         (gen_random_uuid(), 'Гранат', 8, 2, 5367, true),
@@ -101,8 +94,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_coworking_bookings_status", table_name="coworking_bookings")
-    op.drop_index("ix_coworking_bookings_coworking_id", table_name="coworking_bookings")
-    op.drop_index("ix_coworking_bookings_student_id", table_name="coworking_bookings")
-    op.drop_table("coworking_bookings")
-    op.drop_table("coworkings")
+    op.drop_index("ix_coworking_booking_status", table_name="coworking_booking")
+    op.drop_index("ix_coworking_booking_coworking_id", table_name="coworking_booking")
+    op.drop_index("ix_coworking_booking_student_id", table_name="coworking_booking")
+    op.drop_table("coworking_booking")
+    op.drop_table("coworking")

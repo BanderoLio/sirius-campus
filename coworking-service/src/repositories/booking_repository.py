@@ -5,7 +5,11 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.constants.booking_status import BOOKING_STATUS_ACTIVE, BOOKING_STATUS_CREATED
+from src.constants.booking_status import (
+    BOOKING_STATUS_ACTIVE,
+    BOOKING_STATUS_CREATED,
+    BOOKING_STATUS_PENDING_CLOSE,
+)
 from src.models.coworking import CoworkingModel
 from src.models.coworking_booking import CoworkingBookingModel
 
@@ -102,7 +106,11 @@ class BookingRepository:
     async def get_active_bookings(self) -> list[CoworkingBookingModel]:
         result = await self._session.execute(
             select(CoworkingBookingModel)
-            .where(CoworkingBookingModel.status == BOOKING_STATUS_ACTIVE)
+            .where(
+                CoworkingBookingModel.status.in_(
+                    [BOOKING_STATUS_ACTIVE, BOOKING_STATUS_PENDING_CLOSE]
+                )
+            )
             .options(selectinload(CoworkingBookingModel.coworking))
             .order_by(CoworkingBookingModel.taken_from.asc())
         )
@@ -160,13 +168,11 @@ class BookingRepository:
         student_id: UUID,
         coworking_id: UUID,
         taken_from: datetime,
-        returned_back: datetime,
     ) -> CoworkingBookingModel:
         model = CoworkingBookingModel(
             student_id=student_id,
             coworking_id=coworking_id,
             taken_from=taken_from,
-            returned_back=returned_back,
             status=BOOKING_STATUS_CREATED,
         )
         self._session.add(model)
@@ -178,11 +184,15 @@ class BookingRepository:
         self,
         booking_id: UUID,
         status: str,
+        *,
+        returned_back: datetime | None = None,
     ) -> CoworkingBookingModel | None:
         model = await self.get_by_id(booking_id)
         if model is None:
             return None
         model.status = status
+        if returned_back is not None:
+            model.returned_back = returned_back
         await self._session.flush()
         await self._session.refresh(model)
         return model

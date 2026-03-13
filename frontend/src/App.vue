@@ -38,10 +38,20 @@ watch(activeRole, (role) => {
 <template>
   <div class="min-h-screen bg-gray-50 text-gray-900">
     <header class="border-b bg-white px-4 py-3 shadow-sm">
-      <div class="mx-auto flex max-w-5xl items-center justify-between">
-        <RouterLink to="/" class="text-xl font-semibold text-gray-900">
-          Кампус Сириус
-        </RouterLink>
+      <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <RouterLink to="/" class="flex items-center gap-2 text-xl font-semibold text-gray-900">
+            <img
+              src="/logo.png"
+              alt="Кампус Сириус"
+              class="h-8 w-8 object-contain"
+            />
+            Кампус Сириус
+          </RouterLink>
+          <span class="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700">
+            {{ activeLabel }}
+          </span>
+        </div>
         <nav class="flex items-center gap-4 text-sm">
           <RouterLink
             to="/coworkings"
@@ -60,11 +70,19 @@ watch(activeRole, (role) => {
           </RouterLink>
           <RouterLink
             v-if="isEducator"
+            to="/bookings/requests"
+            class="text-gray-600 hover:text-gray-900"
+            active-class="font-medium text-gray-900"
+          >
+            Заявки
+          </RouterLink>
+          <RouterLink
+            v-if="isEducator"
             to="/bookings/active"
             class="text-gray-600 hover:text-gray-900"
             active-class="font-medium text-gray-900"
           >
-            Дашборд
+            Активные
           </RouterLink>
           <RouterLink
             v-if="isEducator"
@@ -75,7 +93,10 @@ watch(activeRole, (role) => {
             История
           </RouterLink>
 
-          <div v-if="DEV" class="ml-4 flex items-center gap-1.5 rounded border border-dashed border-amber-400 bg-amber-50 px-2 py-1 text-xs">
+          <div
+            v-if="DEV"
+            class="ml-4 flex items-center gap-1.5 rounded border border-dashed border-amber-400 bg-amber-50 px-2 py-1 text-xs"
+          >
             <span class="text-amber-700">Роль:</span>
             <select
               v-model="activeRole"
@@ -89,7 +110,7 @@ watch(activeRole, (role) => {
         </nav>
       </div>
     </header>
-    <main class="mx-auto max-w-5xl px-4 py-6">
+    <main class="mx-auto max-w-4xl px-4 py-6">
       <RouterView />
     </main>
   </div>

@@ -10,6 +10,9 @@ from src.api.v1.coworkings.schemas import CoworkingResponse
 class BookingCreateRequest(BaseModel):
     coworking_id: UUID
     taken_from: datetime
+
+
+class BookingCloseRequest(BaseModel):
     returned_back: datetime
 
 
@@ -30,7 +33,7 @@ class BookingResponse(BaseModel):
     student_id: UUID
     coworking_id: UUID
     taken_from: datetime
-    returned_back: datetime
+    returned_back: datetime | None = None
     status: str
 
 
@@ -41,7 +44,7 @@ class BookingDetailResponse(BaseModel):
     student_id: UUID
     coworking_id: UUID
     taken_from: datetime
-    returned_back: datetime
+    returned_back: datetime | None = None
     status: str
     student: StudentShort | None = None
     coworking: CoworkingResponse | None = None

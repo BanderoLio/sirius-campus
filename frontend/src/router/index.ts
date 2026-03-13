@@ -35,9 +35,15 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: "/bookings/requests",
+      name: "booking-requests",
+      component: () => import("@/views/bookings/BookingListEducatorView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/bookings/history",
       name: "booking-history",
-      component: () => import("@/views/bookings/BookingHistoryView.vue"),
+      component: () => import("@/views/bookings/BookingListEducatorView.vue"),
       meta: { requiresAuth: true },
     },
     {

@@ -41,6 +41,13 @@ onMounted(() => {
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <h2 class="text-xl font-semibold">Коворкинги</h2>
+      <RouterLink
+        v-if="!isStudent"
+        to="/bookings/requests"
+        class="rounded border px-3 py-1.5 text-sm hover:bg-gray-100"
+      >
+        К заявкам
+      </RouterLink>
     </div>
 
     <div class="flex flex-wrap gap-4 rounded border bg-white p-4">
@@ -84,23 +91,12 @@ onMounted(() => {
       </div>
     </div>
 
-    <p
-      v-if="error"
-      class="text-red-600"
-    >
+    <p v-if="error" class="text-red-600">
       {{ error }}
     </p>
-    <p
-      v-if="loading"
-      class="text-gray-600"
-    >
-      Загрузка...
-    </p>
+    <p v-if="loading" class="text-gray-600">Загрузка...</p>
 
-    <div
-      v-else
-      class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-    >
+    <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div
         v-for="cw in coworkings"
         :key="cw.id"
@@ -110,7 +106,11 @@ onMounted(() => {
           <h3 class="text-lg font-semibold">{{ cw.name }}</h3>
           <span
             class="rounded-full px-2.5 py-0.5 text-xs font-medium"
-            :class="cw.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+            :class="
+              cw.available
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+            "
           >
             {{ cw.available ? "Доступен" : "Занят" }}
           </span>

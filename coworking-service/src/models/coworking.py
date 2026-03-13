@@ -7,7 +7,7 @@ from src.models.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 
 
 class CoworkingModel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    __tablename__ = "coworkings"
+    __tablename__ = "coworking"
 
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     building: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -15,7 +15,7 @@ class CoworkingModel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     number: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    bookings: Mapped[list["CoworkingBookingModel"]] = relationship(
+    coworking_booking: Mapped[list["CoworkingBookingModel"]] = relationship(
         "CoworkingBookingModel",
         back_populates="coworking",
         cascade="all, delete-orphan",

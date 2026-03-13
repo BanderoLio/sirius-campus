@@ -11,22 +11,22 @@ from src.models.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 
 
 class CoworkingBookingModel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    __tablename__ = "coworking_bookings"
+    __tablename__ = "coworking_booking"
 
     student_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), nullable=False, index=True,
     )
     coworking_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("coworkings.id", ondelete="CASCADE"),
+        ForeignKey("coworking.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     taken_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
     )
-    returned_back: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+    returned_back: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="created", index=True,
@@ -34,5 +34,5 @@ class CoworkingBookingModel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     coworking: Mapped["CoworkingModel"] = relationship(
         "CoworkingModel",
-        back_populates="bookings",
+        back_populates="coworking_booking",
     )

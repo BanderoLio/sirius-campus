@@ -8,6 +8,7 @@ from src.constants.booking_status import (
     BOOKING_STATUS_CANCELLED,
     BOOKING_STATUS_COMPLETED,
     BOOKING_STATUS_CREATED,
+    BOOKING_STATUS_PENDING_CLOSE,
 )
 from src.domain.exceptions import (
     BookingAccessDeniedError,
@@ -62,7 +63,6 @@ class CoworkingService:
         student_id: UUID,
         coworking_id: UUID,
         taken_from: datetime,
-        returned_back: datetime,
     ) -> object:
         coworking = await self._coworking_repo.get_by_id(coworking_id)
         if not coworking:
@@ -78,7 +78,6 @@ class CoworkingService:
             student_id=student_id,
             coworking_id=coworking_id,
             taken_from=taken_from,
-            returned_back=returned_back,
         )
 
         logger.info(
@@ -183,19 +182,56 @@ class CoworkingService:
         )
         return updated
 
-    async def close_booking(self, booking_id: UUID) -> object:
+    async def close_booking(
+        self,
+        booking_id: UUID,
+        returned_back: datetime | None = None,
+    ) -> object:
         booking = await self._booking_repo.get_by_id(booking_id)
         if not booking:
             raise BookingNotFoundError(str(booking_id))
-        if booking.status != BOOKING_STATUS_ACTIVE:
+        if booking.status not in (BOOKING_STATUS_ACTIVE, BOOKING_STATUS_PENDING_CLOSE):
             raise BookingInvalidStatusTransitionError(booking.status, "close")
+
+        effective_returned_back = returned_back or booking.returned_back
+        if effective_returned_back is None:
+            from src.domain.exceptions import BookingInvalidStatusTransitionError as _E
+            raise _E(booking.status, "close (returned_back is required)")
 
         await self._coworking_repo.update_availability(booking.coworking_id, True)
 
-        updated = await self._booking_repo.update_status(booking_id, BOOKING_STATUS_COMPLETED)
+        updated = await self._booking_repo.update_status(
+            booking_id, BOOKING_STATUS_COMPLETED, returned_back=effective_returned_back,
+        )
         logger.info(
             "booking_closed",
             booking_id=str(booking_id),
+        )
+        return updated
+
+    async def request_close_booking(
+        self,
+        booking_id: UUID,
+        current_user_id: UUID,
+        returned_back: datetime,
+    ) -> object:
+        booking = await self._booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise BookingNotFoundError(str(booking_id))
+
+        if booking.student_id != current_user_id:
+            raise BookingAccessDeniedError()
+
+        if booking.status != BOOKING_STATUS_ACTIVE:
+            raise BookingInvalidStatusTransitionError(booking.status, "request_close")
+
+        updated = await self._booking_repo.update_status(
+            booking_id, BOOKING_STATUS_PENDING_CLOSE, returned_back=returned_back,
+        )
+        logger.info(
+            "booking_close_requested",
+            booking_id=str(booking_id),
+            requested_by=str(current_user_id),
         )
         return updated
 

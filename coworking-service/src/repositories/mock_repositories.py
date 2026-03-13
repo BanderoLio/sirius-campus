@@ -28,7 +28,7 @@ class MockBooking:
     student_id: UUID
     coworking_id: UUID
     taken_from: datetime
-    returned_back: datetime
+    returned_back: datetime | None = None
     status: str = BOOKING_STATUS_CREATED
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -177,25 +177,31 @@ class MockBookingRepository:
         student_id: UUID,
         coworking_id: UUID,
         taken_from: datetime,
-        returned_back: datetime,
     ) -> MockBooking:
         booking = MockBooking(
             id=uuid4(),
             student_id=student_id,
             coworking_id=coworking_id,
             taken_from=taken_from,
-            returned_back=returned_back,
             status=BOOKING_STATUS_CREATED,
             coworking=_CW_INDEX.get(coworking_id),
         )
         _BOOKINGS.append(booking)
         return booking
 
-    async def update_status(self, booking_id: UUID, status: str) -> MockBooking | None:
+    async def update_status(
+        self,
+        booking_id: UUID,
+        status: str,
+        *,
+        returned_back: datetime | None = None,
+    ) -> MockBooking | None:
         b = await self.get_by_id(booking_id)
         if b is None:
             return None
         b.status = status
+        if returned_back is not None:
+            b.returned_back = returned_back
         b.updated_at = datetime.now(timezone.utc)
         return b
 

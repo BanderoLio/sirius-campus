@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from src.api.v1.bookings.schemas import (
+    BookingCloseRequest,
     BookingCreateRequest,
     BookingDetailResponse,
     BookingListResponse,
@@ -62,7 +63,6 @@ async def create_booking(
         student_id=user_id,
         coworking_id=body.coworking_id,
         taken_from=body.taken_from,
-        returned_back=body.returned_back,
     )
     return BookingResponse.model_validate(booking)
 
@@ -224,6 +224,7 @@ async def confirm_booking(
 )
 async def close_booking(
     booking_id: UUID,
+    body: BookingCloseRequest | None = None,
     current_user: tuple[UUID, list[str]] = Depends(get_current_user),
     service: CoworkingService = Depends(get_coworking_service),
 ) -> BookingResponse:
@@ -232,7 +233,30 @@ async def close_booking(
     if not is_educator:
         raise BookingAccessDeniedError()
 
-    updated = await service.close_booking(booking_id)
+    updated = await service.close_booking(
+        booking_id,
+        returned_back=body.returned_back if body else None,
+    )
+    return BookingResponse.model_validate(updated)
+
+
+@router.patch(
+    "/{booking_id}/request-close",
+    response_model=BookingResponse,
+    summary="Заявка на возврат (студент)",
+)
+async def request_close_booking(
+    booking_id: UUID,
+    body: BookingCloseRequest,
+    current_user: tuple[UUID, list[str]] = Depends(get_current_user),
+    service: CoworkingService = Depends(get_coworking_service),
+) -> BookingResponse:
+    user_id, _ = current_user
+    updated = await service.request_close_booking(
+        booking_id=booking_id,
+        current_user_id=user_id,
+        returned_back=body.returned_back,
+    )
     return BookingResponse.model_validate(updated)
 
 

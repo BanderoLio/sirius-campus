@@ -14,8 +14,6 @@ const { coworkings, loading } = storeToRefs(store);
 const selectedCoworkingId = ref((route.params.coworkingId as string) || "");
 const takenFromDate = ref("");
 const takenFromTime = ref("10:00");
-const returnedBackDate = ref("");
-const returnedBackTime = ref("14:00");
 const submitting = ref(false);
 const formError = ref("");
 
@@ -40,8 +38,7 @@ async function submit() {
   formError.value = "";
   if (
     !selectedCoworkingId.value ||
-    !takenFromDate.value ||
-    !returnedBackDate.value
+    !takenFromDate.value
   ) {
     formError.value = "Заполните все обязательные поля.";
     return;
@@ -52,7 +49,6 @@ async function submit() {
     const booking = await store.createBooking({
       coworking_id: selectedCoworkingId.value,
       taken_from: buildIso(takenFromDate.value, takenFromTime.value),
-      returned_back: buildIso(returnedBackDate.value, returnedBackTime.value),
     });
     router.push({ name: "booking-detail", params: { id: booking.id } });
   } catch {
@@ -92,27 +88,16 @@ onMounted(() => {
           required
           :disabled="loading"
         >
-          <option
-            value=""
-            disabled
-          >
-            Выберите коворкинг
-          </option>
-          <option
-            v-for="cw in coworkings"
-            :key="cw.id"
-            :value="cw.id"
-          >
+          <option value="" disabled>Выберите коворкинг</option>
+          <option v-for="cw in coworkings" :key="cw.id" :value="cw.id">
             {{ cw.name }} (корп. {{ cw.building }}, подъезд {{ cw.entrance }},
             комн. {{ cw.number }})
           </option>
         </select>
-        <p
-          v-if="selectedCoworking"
-          class="mt-1 text-sm text-gray-500"
-        >
-          {{ selectedCoworking.name }} — Корпус {{ selectedCoworking.building }},
-          подъезд {{ selectedCoworking.entrance }}
+        <p v-if="selectedCoworking" class="mt-1 text-sm text-gray-500">
+          {{ selectedCoworking.name }} — Корпус
+          {{ selectedCoworking.building }}, подъезд
+          {{ selectedCoworking.entrance }}
         </p>
       </div>
 
@@ -124,18 +109,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div>
-        <label class="mb-1 block font-medium">Дата и время возврата</label>
-        <div class="flex items-start gap-2">
-          <DateInput v-model="returnedBackDate" required class="flex-1" />
-          <TimeInput v-model="returnedBackTime" />
-        </div>
-      </div>
-
-      <p
-        v-if="formError"
-        class="text-red-600"
-      >
+      <p v-if="formError" class="text-red-600">
         {{ formError }}
       </p>
 
