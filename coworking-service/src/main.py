@@ -1,6 +1,6 @@
-import logging
+from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
 
-import structlog
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
@@ -10,24 +10,21 @@ from src.api.v1.bookings.routers import router as bookings_router
 from src.api.v1.coworkings.routers import router as coworkings_router
 from src.config import settings
 from src.exceptions import register_exception_handlers
+from src.logging_config import configure_logging
 from src.middleware.tracing import TracingMiddleware
 
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso", utc=True),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(
-        getattr(logging, settings.log_level.upper(), logging.INFO)
-    ),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=True,
+_log_listener = configure_logging(
+    service_name=settings.app_name,
+    log_level=settings.log_level,
+    loki_url=settings.loki_url,
 )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    yield
+    _log_listener.stop()
+
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -39,6 +36,7 @@ app = FastAPI(
     ),
     swagger_ui_parameters={"persistAuthorization": True},
     dependencies=[Depends(_bearer)],
+    lifespan=lifespan,
 )
 
 app.add_middleware(TracingMiddleware)
