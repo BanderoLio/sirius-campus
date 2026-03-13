@@ -1,4 +1,3 @@
-/efimov-promts
 /efimov-excrement
 
 ```gitignore
@@ -27,4 +26,5 @@ htmlcov/
 # Docker
 docker-compose.override.yml
 
-/frontend
+node_modules/
+patrol-service/poetry.lock

@@ -1,0 +1,686 @@
+openapi: 3.0.0
+info:
+  title: Patrol Service API
+  description: |
+    Микросервис обходов проекта «Кампус Сириус».
+
+    Управляет сеансами обхода подъездов и записями проверки студентов.
+    При создании сеанса обхода автоматически формируются записи для каждого
+    несовершеннолетнего студента в указанном подъезде (данные о проживании
+    запрашиваются из auth-service по gRPC). Одобренные заявления на выход
+    подтягиваются из application-service по gRPC и автоматически проставляют
+    отсутствие с причиной.
+  version: 1.0.0
+  contact:
+    name: Nuclear beavers
+
+servers:
+  - url: http://localhost:8002/api/v1
+    description: Локальный сервер для разработки
+
+tags:
+  - name: Patrols
+    description: Сеансы обхода
+  - name: Patrol Entries
+    description: Записи проверки студентов в рамках обхода
+
+paths:
+  /patrols:
+    get:
+      tags:
+        - Patrols
+      summary: Получить список всех обходов
+      description: |
+        Возвращает список сеансов обхода с пагинацией.
+        Поддерживает фильтрацию по дате, корпусу, подъезду и статусу.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: date
+          in: query
+          required: false
+          description: Фильтр по дате обхода (ISO 8601, YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2025-12-01"
+        - name: building
+          in: query
+          required: false
+          description: Фильтр по корпусу
+          schema:
+            type: string
+            enum: ["8", "9"]
+            example: "8"
+        - name: entrance
+          in: query
+          required: false
+          description: Фильтр по подъезду (1–4)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4
+            example: 2
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу обхода
+          schema:
+            type: string
+            enum:
+              - in_progress
+              - completed
+            example: "in_progress"
+      responses:
+        '200':
+          description: Список обходов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatrolListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Patrols
+      summary: Создать новый сеанс обхода
+      description: |
+        Создаёт новый сеанс обхода для указанного корпуса и подъезда.
+
+        При создании:
+        1. Из auth-service по gRPC запрашивается список несовершеннолетних
+           студентов, проживающих в указанном подъезде.
+        2. Для каждого студента автоматически создаётся запись в
+           `patrol_entries` со статусом «не проверен» (`is_present = null`).
+        3. Из application-service по gRPC запрашиваются одобренные заявления
+           на выход на указанную дату — для таких студентов автоматически
+           проставляется `is_present = false` и заполняется `absence_reason`.
+        4. Статус обхода устанавливается в `in_progress`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatrolCreate'
+      responses:
+        '201':
+          description: Сеанс обхода успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatrolDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Обход для данного подъезда на эту дату уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "PATROL_ALREADY_EXISTS"
+                  message: "Обход для корпуса 8, подъезда 2 на дату 2025-12-01 уже существует."
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /patrols/{patrolId}:
+    parameters:
+      - $ref: '#/components/parameters/PatrolIdParam'
+
+    get:
+      tags:
+        - Patrols
+      summary: Получить состояние обхода
+      description: |
+        Возвращает полное состояние обхода, включая все записи
+        проверяемых студентов (`patrol_entries`).
+      responses:
+        '200':
+          description: Состояние обхода
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatrolDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PatrolNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Patrols
+      summary: Обновить состояние обхода
+      description: |
+        Частично обновляет состояние обхода. Основное назначение — завершение
+        обхода (перевод статуса в `completed`). При завершении автоматически
+        проставляется `submitted_at`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatrolUpdate'
+      responses:
+        '200':
+          description: Состояние обхода обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatrolDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PatrolNotFound'
+        '422':
+          description: Невозможно обновить обход (например, уже завершён)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "PATROL_ALREADY_COMPLETED"
+                  message: "Обход уже завершён."
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Patrols
+      summary: Удалить сеанс обхода
+      description: |
+        Удаляет сеанс обхода и все связанные записи студентов.
+        Используется при ошибочном создании обхода.
+      responses:
+        '204':
+          description: Сеанс обхода успешно удалён
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PatrolNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /patrols/{patrolId}/{patrolEntryId}:
+    parameters:
+      - $ref: '#/components/parameters/PatrolIdParam'
+      - $ref: '#/components/parameters/PatrolEntryIdParam'
+
+    get:
+      tags:
+        - Patrol Entries
+      summary: Получить состояние записи проверяемого студента
+      description: Возвращает детальную информацию о записи проверки конкретного студента.
+      responses:
+        '200':
+          description: Запись студента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatrolEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PatrolEntryNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Patrol Entries
+      summary: Обновить состояние студента
+      description: |
+        Частично обновляет запись проверки студента — отметить присутствие
+        или отсутствие с причиной. При обновлении автоматически проставляется
+        `checked_at`. Обход должен быть в статусе `in_progress`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatrolEntryUpdate'
+      responses:
+        '200':
+          description: Запись студента обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatrolEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PatrolEntryNotFound'
+        '422':
+          description: Обход уже завершён, обновление записей невозможно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "PATROL_NOT_IN_PROGRESS"
+                  message: "Невозможно обновить запись — обход уже завершён."
+                  trace_id: "550e8400-e29b-41d4-a716-446655440000"
+                  details: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    PatrolIdParam:
+      name: patrolId
+      in: path
+      required: true
+      description: UUID сеанса обхода
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    PatrolEntryIdParam:
+      name: patrolEntryId
+      in: path
+      required: true
+      description: UUID записи проверки студента
+      schema:
+        type: string
+        format: uuid
+        example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы (от 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        example: 1
+
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      description: Количество элементов на странице (максимум 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        example: 20
+
+  schemas:
+    PatrolCreate:
+      type: object
+      description: Данные для создания нового сеанса обхода
+      properties:
+        date:
+          type: string
+          format: date
+          description: Дата обхода
+          example: "2025-12-01"
+        building:
+          type: string
+          description: Корпус
+          enum: ["8", "9"]
+          example: "8"
+        entrance:
+          type: integer
+          description: Подъезд (1–4)
+          minimum: 1
+          maximum: 4
+          example: 2
+      required:
+        - date
+        - building
+        - entrance
+
+    PatrolUpdate:
+      type: object
+      description: Данные для частичного обновления состояния обхода
+      properties:
+        status:
+          type: string
+          description: Новый статус обхода
+          enum:
+            - completed
+          example: "completed"
+      required:
+        - status
+
+    Patrol:
+      type: object
+      description: Сеанс обхода (без записей студентов)
+      properties:
+        patrol_id:
+          type: string
+          format: uuid
+          description: Идентификатор обхода
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        date:
+          type: string
+          format: date
+          description: Дата обхода
+          example: "2025-12-01"
+        building:
+          type: string
+          description: Корпус
+          enum: ["8", "9"]
+          example: "8"
+        entrance:
+          type: integer
+          description: Подъезд
+          example: 2
+        status:
+          type: string
+          description: Статус обхода
+          enum:
+            - in_progress
+            - completed
+          example: "in_progress"
+        started_at:
+          type: string
+          format: date-time
+          description: Время начала обхода
+          example: "2025-12-01T21:00:00Z"
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Время сдачи таблицы обхода (null, если ещё не завершён)
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания записи
+          example: "2025-12-01T20:55:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления
+          example: "2025-12-01T20:55:00Z"
+      required:
+        - patrol_id
+        - date
+        - building
+        - entrance
+        - status
+        - started_at
+        - created_at
+        - updated_at
+
+    PatrolDetailResponse:
+      type: object
+      description: Полное состояние обхода, включая записи студентов
+      allOf:
+        - $ref: '#/components/schemas/Patrol'
+        - type: object
+          properties:
+            entries:
+              type: array
+              description: Записи проверки студентов
+              items:
+                $ref: '#/components/schemas/PatrolEntry'
+          required:
+            - entries
+
+    PatrolListResponse:
+      type: object
+      description: Список обходов с пагинацией
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Patrol'
+        total:
+          type: integer
+          description: Общее количество обходов по фильтру
+          example: 48
+        page:
+          type: integer
+          description: Текущая страница
+          example: 1
+        size:
+          type: integer
+          description: Размер страницы
+          example: 20
+        pages:
+          type: integer
+          description: Общее количество страниц
+          example: 3
+      required:
+        - items
+        - total
+        - page
+        - size
+        - pages
+
+    PatrolEntryUpdate:
+      type: object
+      description: Данные для частичного обновления состояния проверки студента
+      properties:
+        is_present:
+          type: boolean
+          description: Находится ли студент в комнате
+          example: false
+        absence_reason:
+          type: string
+          nullable: true
+          description: Причина отсутствия (обязательно, если `is_present = false`)
+          example: "Одобренное заявление на выход до 23:00"
+      required:
+        - is_present
+
+    PatrolEntry:
+      type: object
+      description: Запись проверки студента в рамках обхода
+      properties:
+        patrol_entry_id:
+          type: string
+          format: uuid
+          description: Идентификатор записи
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        patrol_id:
+          type: string
+          format: uuid
+          description: Идентификатор обхода
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        room:
+          type: string
+          description: Номер комнаты
+          example: "304"
+        user_id:
+          type: string
+          format: uuid
+          description: UUID проверяемого студента
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        is_present:
+          type: boolean
+          nullable: true
+          description: |
+            Находится ли студент в комнате.
+            `null` — ещё не проверен, `true` — присутствует, `false` — отсутствует.
+          example: null
+        absence_reason:
+          type: string
+          nullable: true
+          description: Причина отсутствия (если известна)
+          example: null
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Время проверки (null, если ещё не проверен)
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания записи
+          example: "2025-12-01T21:00:05Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления
+          example: "2025-12-01T21:00:05Z"
+      required:
+        - patrol_entry_id
+        - patrol_id
+        - room
+        - user_id
+        - created_at
+        - updated_at
+
+    ErrorResponse:
+      type: object
+      description: Стандартный формат ответа об ошибке
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Код ошибки
+              example: "PATROL_NOT_FOUND"
+            message:
+              type: string
+              description: Человекочитаемое описание ошибки
+              example: "Обход с указанным ID не найден."
+            trace_id:
+              type: string
+              format: uuid
+              description: Идентификатор трассировки
+              example: "550e8400-e29b-41d4-a716-446655440000"
+            details:
+              nullable: true
+              description: Дополнительные данные об ошибке (опционально)
+              example: null
+          required:
+            - code
+            - message
+            - trace_id
+
+  responses:
+    BadRequest:
+      description: Ошибка валидации / некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Некорректные данные запроса."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details:
+                - field: "entrance"
+                  message: "Значение должно быть от 1 до 4."
+
+    Unauthorized:
+      description: Не аутентифицирован — токен отсутствует или невалиден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Токен доступа отсутствует или невалиден."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    Forbidden:
+      description: Недостаточно прав доступа
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "FORBIDDEN"
+              message: "Недостаточно прав для выполнения операции."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    PatrolNotFound:
+      description: Обход не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "PATROL_NOT_FOUND"
+              message: "Обход с указанным ID не найден."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    PatrolEntryNotFound:
+      description: Запись проверки студента не найдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "PATROL_ENTRY_NOT_FOUND"
+              message: "Запись проверки студента с указанным ID не найдена в данном обходе."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "INTERNAL_ERROR"
+              message: "Внутренняя ошибка сервера."
+              trace_id: "550e8400-e29b-41d4-a716-446655440000"
+              details: null
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Access Token. Передаётся в заголовке Authorization: Bearer <token>.
+        Токен валидируется через auth-service (gRPC).
+
+security:
+  - BearerAuth: []

@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package campus.patrol;
+
+service PatrolService {
+  // Получение списка обходов с пагинацией и фильтрацией
+  rpc ListPatrols(ListPatrolsRequest) returns (ListPatrolsResponse);
+
+  // Получение одобренных заявлений на выход (нужно для других сервисов)
+  rpc GetPatrolsForDate(GetPatrolsForDateRequest) returns (GetPatrolsForDateResponse);
+  
+  // Получение деталей обхода
+  rpc GetPatrolDetails(GetPatrolDetailsRequest) returns (GetPatrolDetailsResponse);
+
+  // Создание обхода
+  rpc CreatePatrol(CreatePatrolRequest) returns (CreatePatrolResponse);
+
+  // Обновление обхода (завершение)
+  rpc UpdatePatrol(UpdatePatrolRequest) returns (UpdatePatrolResponse);
+
+  // Удаление обхода
+  rpc DeletePatrol(DeletePatrolRequest) returns (DeletePatrolResponse);
+
+  // Получение записи проверки студента
+  rpc GetPatrolEntry(GetPatrolEntryRequest) returns (GetPatrolEntryResponse);
+
+  // Обновление записи проверки студента
+  rpc UpdatePatrolEntry(UpdatePatrolEntryRequest) returns (UpdatePatrolEntryResponse);
+}
+
+// Запрос на получение списка обходов
+message ListPatrolsRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string date = 3;           // ISO 8601 дата (YYYY-MM-DD)
+  string building = 4;       // корпус
+  string entrance = 5;       // подъезд
+  string status = 6;         // статус
+}
+
+message PatrolSummary {
+  string patrol_id = 1;
+  string date = 2;
+  string building = 3;
+  string entrance = 4;
+  string status = 5;
+  string started_at = 6;
+  string submitted_at = 7;
+  int32 entries_count = 8;
+  int32 present_count = 9;
+  int32 absent_count = 10;
+}
+
+message ListPatrolsResponse {
+  repeated PatrolSummary items = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 size = 4;
+  int32 pages = 5;
+}
+
+// Запрос на получение обходов по дате
+message GetPatrolsForDateRequest {
+  string date = 1;           // ISO 8601 дата (YYYY-MM-DD)
+  string building = 2;        // опционально
+  string entrance = 3;        // опционально, пустая строка = все
+}
+
+message GetPatrolsForDateResponse {
+  repeated PatrolSummary patrols = 1;
+}
+
+
+message GetPatrolDetailsRequest {
+  string patrol_id = 1;
+}
+
+message GetPatrolDetailsResponse {
+  string patrol_id = 1;
+  string date = 2;
+  string building = 3;
+  string entrance = 4;
+  string status = 5;
+  string started_at = 6;
+  string submitted_at = 7;
+  string patrol_by = 8;       // UUID пользователя, выполняющего обход
+  string patrol_by_name = 9;  // ФИО пользователя
+  repeated PatrolEntryProto entries = 10;
+}
+
+// Запрос на создание обхода
+message CreatePatrolRequest {
+  string date = 1;           // ISO 8601 дата (YYYY-MM-DD)
+  string building = 2;        // корпус
+  string entrance = 3;        // подъезд
+}
+
+message CreatePatrolResponse {
+  string patrol_id = 1;
+  string date = 2;
+  string building = 3;
+  string entrance = 4;
+  string status = 5;
+  string started_at = 6;
+  string patrol_by = 7;
+}
+
+// Запрос на обновление обхода
+message UpdatePatrolRequest {
+  string patrol_id = 1;
+  string status = 2;          // "completed"
+}
+
+message UpdatePatrolResponse {
+  string patrol_id = 1;
+  string date = 2;
+  string building = 3;
+  string entrance = 4;
+  string status = 5;
+  string started_at = 6;
+  string submitted_at = 7;
+  string patrol_by = 8;
+}
+
+// Запрос на удаление обхода
+message DeletePatrolRequest {
+  string patrol_id = 1;
+}
+
+message DeletePatrolResponse {
+  bool success = 1;
+}
+
+// Запрос на получение записи проверки
+message GetPatrolEntryRequest {
+  string patrol_id = 1;
+  string patrol_entry_id = 2;
+}
+
+message GetPatrolEntryResponse {
+  string patrol_entry_id = 1;
+  string patrol_id = 2;
+  string user_id = 3;
+  string user_name = 4;
+  string room = 5;
+  bool is_present = 6;
+  string absence_reason = 7;
+  string checked_at = 8;
+}
+
+// Запрос на обновление записи проверки
+message UpdatePatrolEntryRequest {
+  string patrol_id = 1;
+  string patrol_entry_id = 2;
+  bool is_present = 3;
+  string absence_reason = 4;
+}
+
+message UpdatePatrolEntryResponse {
+  string patrol_entry_id = 1;
+  string patrol_id = 2;
+  string user_id = 3;
+  string user_name = 4;
+  string room = 5;
+  bool is_present = 6;
+  string absence_reason = 7;
+  string checked_at = 8;
+}
+
+message PatrolEntryProto {
+  string patrol_entry_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  string room = 4;
+  bool is_present = 5;
+  string absence_reason = 6;
+  string checked_at = 7;
+}
+
+// Empty message for future use
+message Empty {}
