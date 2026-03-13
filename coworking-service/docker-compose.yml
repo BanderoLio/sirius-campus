@@ -1,0 +1,54 @@
+services:
+  coworking-service:
+    build: .
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://campus:campus_secret@postgres-coworking-service:5432/coworking_db
+      - AUTH_GRPC_URL=localhost:50051
+      - APP_NAME=coworking-service
+      - LOG_LEVEL=INFO
+      - LOKI_URL=http://loki:3100
+      - USE_MOCKS=false
+    depends_on:
+      postgres-coworking-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health/liveness"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend-coworking-service:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ../frontend:/app
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_TARGET=http://coworking-service:8004
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      coworking-service:
+        condition: service_healthy
+
+  postgres-coworking-service:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: campus
+      POSTGRES_PASSWORD: campus_secret
+      POSTGRES_DB: coworking_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - pg_coworking_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus -d coworking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_coworking_data:
