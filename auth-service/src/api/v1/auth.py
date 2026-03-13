@@ -1,12 +1,15 @@
 """
 Auth API endpoints.
 """
+import logging
 import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.core.database import get_db
 from src.schemas.auth import (
@@ -73,6 +76,7 @@ async def register_student(
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new student."""
+    logger.info(f"Register student request: email={data.email}")
     auth_service = AuthService(db)
 
     try:
@@ -127,6 +131,7 @@ async def register_educator(
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new educator."""
+    logger.info(f"Register educator request: email={data.email}")
     auth_service = AuthService(db)
 
     try:
@@ -169,6 +174,7 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     """Login user and get tokens."""
+    logger.info(f"Login request: email={data.email}")
     auth_service = AuthService(db)
 
     try:
@@ -216,6 +222,7 @@ async def refresh_token(
     db: AsyncSession = Depends(get_db),
 ):
     """Refresh access token."""
+    logger.info("Refresh token request")
     auth_service = AuthService(db)
 
     try:
@@ -246,6 +253,7 @@ async def logout(
     db: AsyncSession = Depends(get_db),
 ):
     """Logout user."""
+    logger.info(f"Logout request: user_id={user_id}")
     auth_service = AuthService(db)
     await auth_service.logout(user_id)
 
@@ -264,6 +272,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Get current user profile."""
+    logger.info(f"Get current user: user_id={user_id}")
     user_service = UserService(db)
     user = await user_service.get_user(user_id)
 
@@ -326,6 +335,7 @@ async def update_current_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Update current user profile."""
+    logger.info(f"Update current user: user_id={user_id}")
     user_service = UserService(db)
     user = await user_service.get_user(user_id)
 
@@ -346,10 +356,33 @@ async def update_current_user(
 
     user_response = UserResponse.model_validate(user)
 
+    # Determine profile type
+    profile = None
+    user_type = None
+
+    if user.student_profile:
+        student = user.student_profile
+        profile = StudentResponse(
+            id=student.id,
+            user_id=student.user_id,
+            building=student.building,
+            entrance=student.entrance,
+            floor=student.floor,
+            room=student.room,
+            is_adult=student.is_adult,
+            created_at=student.created_at,
+            updated_at=student.updated_at,
+            phone=user.phone,
+        )
+        user_type = "student"
+    elif user.educator_profile:
+        profile = EducatorResponse.model_validate(user.educator_profile)
+        user_type = "educator"
+
     return UserWithProfile(
         user=user_response,
-        profile=None,
-        user_type=None,
+        profile=profile,
+        user_type=user_type,
     )
 
 
@@ -367,6 +400,7 @@ async def list_students(
     db: AsyncSession = Depends(get_db),
 ):
     """List students with pagination."""
+    logger.info(f"List students: page={page}, size={size}, building={building}, entrance={entrance}, floor={floor}")
     student_service = StudentService(db)
     students, total = await student_service.list_students(
         page=page,
@@ -415,6 +449,7 @@ async def get_student(
     db: AsyncSession = Depends(get_db),
 ):
     """Get student by ID."""
+    logger.info(f"Get student: student_id={student_id}")
     student_service = StudentService(db)
     student = await student_service.get_student(student_id)
 
@@ -461,6 +496,7 @@ async def update_student(
     db: AsyncSession = Depends(get_db),
 ):
     """Update student profile."""
+    logger.info(f"Update student: student_id={student_id}, current_user_id={current_user_id}")
     student_service = StudentService(db)
     student = await student_service.get_student(student_id)
 
@@ -522,6 +558,7 @@ async def list_educators(
     db: AsyncSession = Depends(get_db),
 ):
     """List educators with pagination."""
+    logger.info(f"List educators: page={page}, size={size}, is_night={is_night}")
     educator_service = EducatorService(db)
     educators, total = await educator_service.list_educators(
         page=page,
@@ -553,6 +590,7 @@ async def get_educator(
     db: AsyncSession = Depends(get_db),
 ):
     """Get educator by ID."""
+    logger.info(f"Get educator: educator_id={educator_id}")
     educator_service = EducatorService(db)
     educator = await educator_service.get_educator(educator_id)
 
@@ -588,6 +626,7 @@ async def update_educator(
     db: AsyncSession = Depends(get_db),
 ):
     """Update educator profile."""
+    logger.info(f"Update educator: educator_id={educator_id}, current_user_id={current_user_id}")
     educator_service = EducatorService(db)
     educator = await educator_service.get_educator(educator_id)
 
@@ -641,6 +680,7 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
 ):
     """List users with pagination (admin endpoint)."""
+    logger.info(f"List users: page={page}, size={size}, building={building}, entrance={entrance}, floor={floor}, role={role}")
     user_service = UserService(db)
     users, total = await user_service.list_users(
         page=page,
@@ -675,6 +715,7 @@ async def get_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Get user by ID."""
+    logger.info(f"Get user: user_id={user_id}")
     user_service = UserService(db)
     user = await user_service.get_user(user_id)
 

@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     BCRYPT_ROUNDS: int = 12
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8001"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8001"]
 
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = True

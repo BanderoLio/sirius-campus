@@ -1,12 +1,15 @@
 """
 gRPC server implementation for auth-service.
 """
+import logging
 import uuid
 from concurrent import futures
 from typing import Optional
 
 import grpc
 from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
 
 from src.core.config import get_settings
 from src.core.database import async_session_factory
@@ -22,6 +25,7 @@ class AuthServiceServicer:
 
     async def ValidateToken(self, request, context):
         """Validate JWT token and get user data."""
+        logger.info("ValidateToken request received")
         token = request.token
 
         if not token:
@@ -54,6 +58,7 @@ class AuthServiceServicer:
 
     async def GetUserInfo(self, request, context):
         """Get user info by ID."""
+        logger.info(f"GetUserInfo request: user_id={request.user_id}")
         user_id = request.user_id
 
         try:
@@ -107,6 +112,7 @@ class AuthServiceServicer:
 
     async def GetUsers(self, request, context):
         """Get list of users by filters."""
+        logger.info(f"GetUsers request: building={request.building}, entrance={request.entrance}, floor={request.floor}, room={request.room}, role={request.role}, page={request.page}, size={request.size}")
         building = request.building if request.building else None
         entrance = request.entrance if request.entrance else None
         floor = request.floor if request.floor else None
@@ -172,6 +178,7 @@ class AuthServiceServicer:
 
     async def CheckUserRole(self, request, context):
         """Check if user has a specific role."""
+        logger.info(f"CheckUserRole request: user_id={request.user_id}, required_role={request.required_role}")
         user_id = request.user_id
         required_role = request.required_role
 
