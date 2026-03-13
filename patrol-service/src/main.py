@@ -1,5 +1,6 @@
 import logging
 import sys
+from queue import Queue
 
 import structlog
 from fastapi import FastAPI
@@ -16,19 +17,23 @@ from src.exceptions import register_exception_handlers
 from src.middleware import TracingMiddleware
 from src.grpc_server import create_and_start_grpc_server
 
-# Logging: console always; Loki when LOKI_URL is set
+# Logging: console always; Loki when LOKI_URL is set (via QueueHandler for non-blocking)
 log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+_loki_queue_listener = None
 if getattr(settings, "loki_url", None) and settings.loki_url.strip():
     try:
+        from logging.handlers import QueueHandler, QueueListener
         from logging_loki import LokiHandler
 
-        log_handlers.append(
-            LokiHandler(
-                url=f"{settings.loki_url.rstrip('/')}/loki/api/v1/push",
-                tags={"service": getattr(settings, "app_name", "patrol-service")},
-                version="1",
-            )
+        _log_queue: Queue = Queue(-1)
+        _loki_handler = LokiHandler(
+            url=f"{settings.loki_url.rstrip('/')}/loki/api/v1/push",
+            tags={"service": getattr(settings, "app_name", "patrol-service")},
+            version="1",
         )
+        _loki_queue_listener = QueueListener(_log_queue, _loki_handler, respect_handler_level=True)
+        _loki_queue_listener.start()
+        log_handlers.append(QueueHandler(_log_queue))
     except Exception:  # noqa: BLE001
         pass
 
@@ -70,6 +75,9 @@ async def lifespan(app: FastAPI):
     # Shutdown gRPC server
     if grpc_server:
         await grpc_server.stop(0)
+    # Stop Loki queue listener to flush pending logs
+    if _loki_queue_listener is not None:
+        _loki_queue_listener.stop()
 
 
 app = FastAPI(
