@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package campus.auth;
+
+service AuthService {
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc GetUserInfo(GetUserInfoRequest) returns (UserInfoResponse);
+  rpc GetUsers(GetUsersRequest) returns (GetUsersResponse);
+  rpc CheckUserRole(CheckUserRoleRequest) returns (CheckUserRoleResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  repeated string roles = 3;
+  string room_id = 4;
+}
+
+message GetUserInfoRequest {
+  string user_id = 1;
+}
+
+message UserInfoResponse {
+  string user_id = 1;
+  string last_name = 2;
+  string first_name = 3;
+  string patronymic = 4;
+  string room_id = 5;
+  repeated string roles = 6;
+  string phone = 7;
+  string email = 8;
+  bool is_minor = 9;
+}
+
+message CheckUserRoleRequest {
+  string user_id = 1;
+  string required_role = 2;
+}
+
+message CheckUserRoleResponse {
+  bool has_role = 1;
+}
+
+message GetUsersRequest {
+  string role = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string room_id = 4;
+}
+
+message GetUsersResponse {
+  repeated UserInfoResponse users = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 size = 4;
+  int32 pages = 5;
+}

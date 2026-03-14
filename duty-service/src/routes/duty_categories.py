@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
-from src.database import get_db
-from src.database.models import DutyCategory
+from src.dependencies.auth import get_current_user
+from src.dependencies.services import get_duty_category_service
+from src.grpc_clients.auth_client import AuthenticatedUser
 from src.schemas import (
     DutyCategoryResponse,
     DutyCategoryListResponse,
 )
+from src.services.duty_category_service import DutyCategoryService
 
 router = APIRouter(prefix="/duties/categories", tags=["Duty Report Categories"])
 
@@ -16,20 +16,13 @@ router = APIRouter(prefix="/duties/categories", tags=["Duty Report Categories"])
 async def get_categories(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    service: DutyCategoryService = Depends(get_duty_category_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
-    query = select(DutyCategory)
-    
-    count_query = select(func.count()).select_from(DutyCategory)
-    total_result = await db.execute(count_query)
-    total = total_result.scalar()
-    
-    query = query.offset((page - 1) * size).limit(size)
-    result = await db.execute(query)
-    categories = result.scalars().all()
-    
+    categories, total = await service.list(page=page, size=size)
+
     pages = (total + size - 1) // size if total > 0 else 0
-    
+
     return DutyCategoryListResponse(
         items=[DutyCategoryResponse.model_validate(c) for c in categories],
         total=total,

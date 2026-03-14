@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.database import engine, Base
+from src.database import engine
+from src.exceptions.handlers import register_exception_handlers
+from src.middleware.tracing import TracingMiddleware
 from src.routes import (
     schedules_router,
     reports_router,
@@ -34,6 +36,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TracingMiddleware)
+
+register_exception_handlers(app)
 
 app.include_router(schedules_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")

@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, status
 from uuid import UUID
 
-from src.database import get_db
-from src.database.models import DutyReportImage
+from src.dependencies.auth import get_current_user
+from src.dependencies.services import get_duty_image_service
+from src.grpc_clients.auth_client import AuthenticatedUser
 from src.schemas import (
     DutyReportImageResponse,
     DutyReportImageCreate,
 )
+from src.services.duty_image_service import DutyImageService
 
 router = APIRouter(prefix="/duties/reports/{report_id}/images", tags=["Duty Report Images"])
 
@@ -17,18 +17,15 @@ router = APIRouter(prefix="/duties/reports/{report_id}/images", tags=["Duty Repo
 async def create_image(
     report_id: UUID,
     image_data: DutyReportImageCreate,
-    db: AsyncSession = Depends(get_db),
+    service: DutyImageService = Depends(get_duty_image_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
-    image = DutyReportImage(
+    image = await service.create(
         report_id=report_id,
         category_id=image_data.category_id,
         photo_url=image_data.photo_url,
     )
-    
-    db.add(image)
-    await db.commit()
-    await db.refresh(image)
-    
+
     return DutyReportImageResponse.model_validate(image)
 
 
@@ -36,17 +33,7 @@ async def create_image(
 async def delete_image(
     report_id: UUID,
     image_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    service: DutyImageService = Depends(get_duty_image_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
-    query = select(DutyReportImage).where(
-        DutyReportImage.id == image_id,
-        DutyReportImage.report_id == report_id
-    )
-    result = await db.execute(query)
-    image = result.scalar_one_or_none()
-    
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
-    
-    await db.delete(image)
-    await db.commit()
+    await service.delete(report_id=report_id, image_id=image_id)
