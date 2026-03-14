@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     minio_secret_key: str
     minio_bucket_name: str
     minio_secure: bool
+    request_audit_log_file: str
 
 
 settings = Settings()
