@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from uuid import UUID
 
 from src.dependencies.auth import get_current_user
@@ -6,7 +6,6 @@ from src.dependencies.services import get_duty_image_service
 from src.grpc_clients.auth_client import AuthenticatedUser
 from src.schemas import (
     DutyReportImageResponse,
-    DutyReportImageCreate,
 )
 from src.services.duty_image_service import DutyImageService
 
@@ -16,14 +15,18 @@ router = APIRouter(prefix="/duties/reports/{report_id}/images", tags=["Duty Repo
 @router.post("", response_model=DutyReportImageResponse, status_code=status.HTTP_201_CREATED)
 async def create_image(
     report_id: UUID,
-    image_data: DutyReportImageCreate,
+    category_id: UUID = Form(...),
+    file: UploadFile = File(...),
     service: DutyImageService = Depends(get_duty_image_service),
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
+    payload = await file.read()
     image = await service.create(
         report_id=report_id,
-        category_id=image_data.category_id,
-        photo_url=image_data.photo_url,
+        category_id=category_id,
+        filename=file.filename or "image",
+        content_type=file.content_type or "application/octet-stream",
+        payload=payload,
     )
 
     return DutyReportImageResponse.model_validate(image)

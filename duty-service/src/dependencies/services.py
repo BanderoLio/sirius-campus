@@ -10,6 +10,7 @@ from src.services.duty_schedule_service import DutyScheduleService
 from src.services.duty_report_service import DutyReportService
 from src.services.duty_image_service import DutyImageService
 from src.services.duty_category_service import DutyCategoryService
+from src.storage.minio_storage import get_minio_storage
 
 
 def get_duty_schedule_service(session: AsyncSession = Depends(get_db)) -> DutyScheduleService:
@@ -25,7 +26,8 @@ def get_duty_report_service(session: AsyncSession = Depends(get_db)) -> DutyRepo
 
 def get_duty_image_service(session: AsyncSession = Depends(get_db)) -> DutyImageService:
     repository = DutyImageRepository(session)
-    return DutyImageService(repository)
+    storage = get_minio_storage()
+    return DutyImageService(repository, storage)
 
 
 def get_duty_category_service(session: AsyncSession = Depends(get_db)) -> DutyCategoryService:

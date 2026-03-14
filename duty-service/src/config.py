@@ -8,15 +8,20 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    service_name: str = "duty-service"
-    service_port: int = 8003
-    grpc_port: int = 50053
-    environment: str = "development"
-    log_level: str = "INFO"
-    database_url: str = "postgresql+asyncpg://user:password@db:5432/duty_db"
-    auth_service_host: str = "auth-service"
-    auth_service_port: int = 50051
-    grpc_timeout_seconds: float = 5.0
+    service_name: str
+    service_port: int
+    grpc_port: int
+    environment: str
+    log_level: str
+    database_url: str
+    auth_service_host: str
+    auth_service_port: int
+    grpc_timeout_seconds: float
+    minio_endpoint: str
+    minio_access_key: str
+    minio_secret_key: str
+    minio_bucket_name: str
+    minio_secure: bool
 
 
 settings = Settings()
